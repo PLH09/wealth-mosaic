@@ -203,6 +203,7 @@ const CSS = `
   animation:rise .6s ease both;}
 .fd-eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500;}
 .fd-privacy{font-size:12px;color:var(--muted);margin-top:8px;max-width:380px;line-height:1.4;}
+.story-text{font-size:15px;line-height:1.85;color:var(--text);background:rgba(205,170,107,.06);border:1px solid rgba(205,170,107,.18);border-radius:14px;padding:16px 18px;letter-spacing:.01em;}
 .fd-title{font-family:var(--serif);font-size:30px;font-weight:600;line-height:1.05;margin-top:6px;letter-spacing:.01em;}
 .fd-net{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:.01em;}
 .fd-net-row{text-align:right;}
@@ -381,6 +382,8 @@ export default function FinanceDashboard() {
   const [speechErr, setSpeechErr] = useState("");
   const recogRef = React.useRef(null);
   const fileRef = React.useRef(null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -651,6 +654,83 @@ export default function FinanceDashboard() {
 
   const tabs = ["Overview", "Cash Flow", "Net Worth", "Investments & Goals", "Retirement"];
 
+  // ---- spoken financial story (summary narrated via SpeechSynthesis) ----
+  const sayNum = (n) => money(n, cur);
+  const buildStory = () => {
+    const c = calc;
+    const parts = [];
+    if (c.netWorth > 0)
+      parts.push(`Your net worth right now is ${sayNum(c.netWorth)}, that's ${sayNum(c.assets)} in assets minus ${sayNum(c.liab)} in debt.`);
+    else if (c.assets > 0 || c.liab > 0)
+      parts.push(`Your net worth is still negative — don't worry, paying down debt step by step will turn it positive.`);
+    else
+      parts.push(`You haven't entered much yet. Tap Guided fill or Load sample, and I'll tell your full financial story.`);
+
+    if (c.income > 0 || c.expense > 0) {
+      const verdict = c.rate >= 30 ? "which is excellent" : c.rate >= 20 ? "which is healthy" : c.rate >= 0 ? "with room to improve" : "you spent more than you earned this month, so watch out";
+      parts.push(`This month you earned ${sayNum(c.income)} and spent ${sayNum(c.expense)}, leaving ${sayNum(c.net)}, a savings rate of ${c.rate.toFixed(0)} percent, ${verdict}.`);
+    }
+
+    const cats = {};
+    [...data.recurring.expenses, ...c.m.expenses].forEach((e) => {
+      const k = e.category || "Other";
+      cats[k] = (cats[k] || 0) + (Number(e.value) || 0);
+    });
+    const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+    if (topCat && topCat[1] > 0) parts.push(`Your biggest category is ${topCat[0]}, at ${sayNum(topCat[1])} a month.`);
+
+    if (c.invest > 0) {
+      const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+      parts.push(`Your investments total ${sayNum(c.invest)} across ${data.portfolio.length} holdings${top ? `, the largest being ${top.label}` : ""}.`);
+    }
+
+    const g = (data.goals || [])[0];
+    if (g && Number(g.target) > 0) {
+      const pct = Math.round((Number(g.current) / Number(g.target)) * 100);
+      const remain = Math.max(0, Number(g.target) - Number(g.current));
+      let eta = "";
+      if (c.net > 0 && remain > 0) {
+        const months = Math.ceil(remain / c.net);
+        const d = new Date();
+        d.setMonth(d.getMonth() + months);
+        eta = `, and at your current pace you'll reach it in about ${months} months, around ${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+      }
+      parts.push(`Your goal "${g.label}" is ${pct} percent complete${eta}.`);
+    }
+
+    const r = data.retire || {};
+    const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+    if (spend > 0 && wr > 0) {
+      const fi = (spend * 12) / (wr / 100);
+      parts.push(`For retirement, with ${sayNum(spend)} of monthly spending and a ${wr} percent withdrawal rate, you'll need about ${sayNum(fi)} to retire comfortably.`);
+    }
+
+    parts.push(`Keep tracking and stay consistent — financial freedom is within reach.`);
+    return parts.join(" ");
+  };
+  const story = buildStory();
+
+  const stopStory = () => {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* no-op */ }
+    setSpeaking(false);
+  };
+  const speakStory = () => {
+    if (typeof window === "undefined" || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance === "undefined") {
+      alert("This browser doesn't support speech playback. Try Chrome or Safari.");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new window.SpeechSynthesisUtterance(story);
+    u.lang = "en-US";
+    u.rate = 1.0;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(u);
+  };
+  const openStory = () => { setStoryOpen(true); };
+  const closeStory = () => { stopStory(); setStoryOpen(false); };
+
   return (
     <div className="fd-root">
       <style>{CSS}</style>
@@ -667,6 +747,7 @@ export default function FinanceDashboard() {
             <div className={"fd-net fd-tabnum " + (calc.netWorth >= 0 ? "" : "neg")}>{money(calc.netWorth, cur)}</div>
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end" }}>
               <button className="fd-toolbtn gold" onClick={openQA}>✦ Guided fill</button>
+              <button className="fd-toolbtn" onClick={openStory}>🔊 Voice recap</button>
               <button className="fd-toolbtn" onClick={() => update({ ...SAMPLE })}>Load sample</button>
               <button className="fd-toolbtn" onClick={exportData}>Export</button>
               <button className="fd-toolbtn" onClick={() => fileRef.current && fileRef.current.click()}>Import</button>
@@ -978,6 +1059,33 @@ export default function FinanceDashboard() {
           </div>
         );
       })()}
+
+      {/* spoken financial story modal */}
+      {storyOpen && (
+        <div className="modal-bg" onClick={closeStory}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h">
+              <div>
+                <div className="fd-eyebrow">Voice recap</div>
+                <div className="sec-t" style={{ fontSize: 17 }}>Your financial story</div>
+              </div>
+              <button className="del" style={{ fontSize: 20 }} onClick={closeStory}>✕</button>
+            </div>
+            <div className="qa-body">
+              <div className="story-text">{story}</div>
+              <div className="qa-actions" style={{ marginTop: 22 }}>
+                <button className={"mic " + (speaking ? "on" : "")} onClick={speaking ? stopStory : speakStory}>
+                  <span className="mic-dot" />
+                  {speaking ? "Speaking… tap to stop" : "🔊 Play voice"}
+                </button>
+                <div style={{ flex: 1 }} />
+                <button className="addbtn" onClick={closeStory}>Close</button>
+              </div>
+              <div className="qa-hint" style={{ marginTop: 12 }}>Speech playback needs browser support (Chrome / Safari); the recap updates live with your data.</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

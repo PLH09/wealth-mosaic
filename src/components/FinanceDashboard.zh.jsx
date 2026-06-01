@@ -195,6 +195,7 @@ const CSS = `
   animation:rise .6s ease both;}
 .fd-eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500;}
 .fd-privacy{font-size:12px;color:var(--muted);margin-top:8px;max-width:380px;line-height:1.4;}
+.story-text{font-size:15px;line-height:1.85;color:var(--text);background:rgba(205,170,107,.06);border:1px solid rgba(205,170,107,.18);border-radius:14px;padding:16px 18px;letter-spacing:.01em;}
 .fd-title{font-family:var(--serif);font-size:30px;font-weight:600;line-height:1.05;margin-top:6px;letter-spacing:.01em;}
 .fd-net{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:.01em;}
 .fd-net-row{text-align:right;}
@@ -373,6 +374,8 @@ export default function FinanceDashboard() {
   const [speechErr, setSpeechErr] = useState("");
   const recogRef = React.useRef(null);
   const fileRef = React.useRef(null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -644,6 +647,83 @@ export default function FinanceDashboard() {
 
   const tabs = ["總覽", "現金流", "淨資產", "投資與目標", "退休"];
 
+  // ---- spoken financial story (summary narrated via SpeechSynthesis) ----
+  const sayNum = (n) => shortMoney(n) + "元";
+  const buildStory = () => {
+    const c = calc;
+    const parts = [];
+    if (c.netWorth > 0)
+      parts.push(`目前你的淨資產是 ${sayNum(c.netWorth)},由 ${sayNum(c.assets)} 的資產,扣掉 ${sayNum(c.liab)} 的負債而來。`);
+    else if (c.assets > 0 || c.liab > 0)
+      parts.push(`目前淨資產還是負的,先別氣餒,把負債逐步還清就會翻正。`);
+    else
+      parts.push(`你還沒有填入太多資料。點「引導填寫」或「載入範例」,我就能幫你說出完整的財務故事。`);
+
+    if (c.income > 0 || c.expense > 0) {
+      const verdict = c.rate >= 30 ? "非常出色" : c.rate >= 20 ? "相當健康" : c.rate >= 0 ? "還有進步空間" : "這個月入不敷出,要特別留意";
+      parts.push(`這個月收入 ${sayNum(c.income)}、支出 ${sayNum(c.expense)},結餘 ${sayNum(c.net)},儲蓄率 ${c.rate.toFixed(0)} 趴,${verdict}。`);
+    }
+
+    const cats = {};
+    [...data.recurring.expenses, ...c.m.expenses].forEach((e) => {
+      const k = e.category || "其他";
+      cats[k] = (cats[k] || 0) + (Number(e.value) || 0);
+    });
+    const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+    if (topCat && topCat[1] > 0) parts.push(`其中花最多的是「${topCat[0]}」,一個月 ${sayNum(topCat[1])}。`);
+
+    if (c.invest > 0) {
+      const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+      parts.push(`投資部位總共 ${sayNum(c.invest)},分布在 ${data.portfolio.length} 項持倉${top ? `,最大的一筆是 ${top.label}` : ""}。`);
+    }
+
+    const g = (data.goals || [])[0];
+    if (g && Number(g.target) > 0) {
+      const pct = Math.round((Number(g.current) / Number(g.target)) * 100);
+      const remain = Math.max(0, Number(g.target) - Number(g.current));
+      let eta = "";
+      if (c.net > 0 && remain > 0) {
+        const months = Math.ceil(remain / c.net);
+        const d = new Date();
+        d.setMonth(d.getMonth() + months);
+        eta = `,照現在的步調,大約 ${months} 個月、也就是 ${d.getFullYear()} 年 ${d.getMonth() + 1} 月就能達成`;
+      }
+      parts.push(`目標「${g.label}」已經完成 ${pct} 趴${eta}。`);
+    }
+
+    const r = data.retire || {};
+    const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+    if (spend > 0 && wr > 0) {
+      const fi = (spend * 12) / (wr / 100);
+      parts.push(`退休方面,依你設定每月 ${sayNum(spend)} 的開銷與 ${wr} 趴的提領率,大約需要準備 ${sayNum(fi)} 才能安心退休。`);
+    }
+
+    parts.push(`持續記錄、穩定累積,財務自由就在不遠處。`);
+    return parts.join("");
+  };
+  const story = buildStory();
+
+  const stopStory = () => {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* no-op */ }
+    setSpeaking(false);
+  };
+  const speakStory = () => {
+    if (typeof window === "undefined" || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance === "undefined") {
+      alert("這個瀏覽器不支援語音朗讀,建議改用 Chrome 或 Safari。");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new window.SpeechSynthesisUtterance(story);
+    u.lang = "zh-TW";
+    u.rate = 1.0;
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(u);
+  };
+  const openStory = () => { setStoryOpen(true); };
+  const closeStory = () => { stopStory(); setStoryOpen(false); };
+
   return (
     <div className="fd-root">
       <style>{CSS}</style>
@@ -660,6 +740,7 @@ export default function FinanceDashboard() {
             <div className={"fd-net fd-tabnum " + (calc.netWorth >= 0 ? "" : "neg")}>{money(calc.netWorth, cur)}</div>
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end" }}>
               <button className="fd-toolbtn gold" onClick={openQA}>✦ 引導填寫</button>
+              <button className="fd-toolbtn" onClick={openStory}>🔊 語音總結</button>
               <button className="fd-toolbtn" onClick={() => update({ ...SAMPLE })}>載入範例</button>
               <button className="fd-toolbtn" onClick={exportData}>匯出</button>
               <button className="fd-toolbtn" onClick={() => fileRef.current && fileRef.current.click()}>匯入</button>
@@ -972,6 +1053,33 @@ export default function FinanceDashboard() {
           </div>
         );
       })()}
+
+      {/* spoken financial story modal */}
+      {storyOpen && (
+        <div className="modal-bg" onClick={closeStory}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h">
+              <div>
+                <div className="fd-eyebrow">語音總結</div>
+                <div className="sec-t" style={{ fontSize: 17 }}>你的財務故事</div>
+              </div>
+              <button className="del" style={{ fontSize: 20 }} onClick={closeStory}>✕</button>
+            </div>
+            <div className="qa-body">
+              <div className="story-text">{story}</div>
+              <div className="qa-actions" style={{ marginTop: 22 }}>
+                <button className={"mic " + (speaking ? "on" : "")} onClick={speaking ? stopStory : speakStory}>
+                  <span className="mic-dot" />
+                  {speaking ? "朗讀中…點此停止" : "🔊 播放語音"}
+                </button>
+                <div style={{ flex: 1 }} />
+                <button className="addbtn" onClick={closeStory}>關閉</button>
+              </div>
+              <div className="qa-hint" style={{ marginTop: 12 }}>語音朗讀需瀏覽器支援(建議 Chrome / Safari);內容會隨你的資料即時更新。</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
