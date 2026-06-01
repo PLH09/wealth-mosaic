@@ -652,16 +652,24 @@ export default function FinanceDashboard() {
   const buildStory = () => {
     const c = calc;
     const parts = [];
+    const hour = new Date().getHours();
+    const greet = hour < 5 ? "夜深了,還在關心自己的錢,這份用心很難得。" : hour < 12 ? "早安。" : hour < 18 ? "午安。" : "晚安,辛苦一天了。";
+    parts.push(greet);
+
     if (c.netWorth > 0)
-      parts.push(`目前你的淨資產是 ${sayNum(c.netWorth)},由 ${sayNum(c.assets)} 的資產,扣掉 ${sayNum(c.liab)} 的負債而來。`);
+      parts.push(`先給你一個好消息——此刻你的淨資產來到 ${sayNum(c.netWorth)}。這是你用 ${sayNum(c.assets)} 的資產,一點一滴扛起 ${sayNum(c.liab)} 的負債後,真正屬於你的數字。每一塊,都是你努力的證明。`);
     else if (c.assets > 0 || c.liab > 0)
-      parts.push(`目前淨資產還是負的,先別氣餒,把負債逐步還清就會翻正。`);
+      parts.push(`現在的淨資產還在水面下,但別灰心。負債只是還沒走完的一段路,不是終點。你願意打開這個畫面面對它,就已經贏過昨天的自己了。`);
     else
-      parts.push(`你還沒有填入太多資料。點「引導填寫」或「載入範例」,我就能幫你說出完整的財務故事。`);
+      parts.push(`我們的故事還是一張白紙,而這正是最令人期待的地方。點一下「引導填寫」或「載入範例」,讓我陪你寫下第一頁。`);
 
     if (c.income > 0 || c.expense > 0) {
-      const verdict = c.rate >= 30 ? "非常出色" : c.rate >= 20 ? "相當健康" : c.rate >= 0 ? "還有進步空間" : "這個月入不敷出,要特別留意";
-      parts.push(`這個月收入 ${sayNum(c.income)}、支出 ${sayNum(c.expense)},結餘 ${sayNum(c.net)},儲蓄率 ${c.rate.toFixed(0)} 趴,${verdict}。`);
+      let verdict;
+      if (c.rate >= 30) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,太漂亮了!這是很多人想都不敢想的數字,你做到了。`;
+      else if (c.rate >= 20) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,穩穩地走在健康的軌道上,繼續保持。`;
+      else if (c.rate >= 0) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,雖然不多,但有存下來就是勝利,我們再一起往上推一點。`;
+      else verdict = `這個月花得比賺的多,別自責——日子有起有落,看清楚了,下個月就有機會調整回來。`;
+      parts.push(`這個月,收入 ${sayNum(c.income)} 進了口袋,支出 ${sayNum(c.expense)} 流了出去,最後留下 ${sayNum(c.net)}。${verdict}`);
     }
 
     const cats = {};
@@ -670,35 +678,37 @@ export default function FinanceDashboard() {
       cats[k] = (cats[k] || 0) + (Number(e.value) || 0);
     });
     const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
-    if (topCat && topCat[1] > 0) parts.push(`其中花最多的是「${topCat[0]}」,一個月 ${sayNum(topCat[1])}。`);
+    if (topCat && topCat[1] > 0) parts.push(`錢花得最兇的地方是「${topCat[0]}」,一個月 ${sayNum(topCat[1])}。看見它在哪,你就握住了改變的鑰匙。`);
 
     if (c.invest > 0) {
       const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
-      parts.push(`投資部位總共 ${sayNum(c.invest)},分布在 ${data.portfolio.length} 項持倉${top ? `,最大的一筆是 ${top.label}` : ""}。`);
+      parts.push(`你還讓 ${sayNum(c.invest)} 的資金替你工作,分散在 ${data.portfolio.length} 項持倉裡${top ? `,其中 ${top.label} 是你最大的夥伴` : ""}。這些錢,正在你睡覺的時候默默長大。`);
     }
 
     const g = (data.goals || [])[0];
     if (g && Number(g.target) > 0) {
       const pct = Math.round((Number(g.current) / Number(g.target)) * 100);
       const remain = Math.max(0, Number(g.target) - Number(g.current));
-      let eta = "";
+      let line = `說到夢想——「${g.label}」你已經走完 ${pct} 趴`;
       if (c.net > 0 && remain > 0) {
         const months = Math.ceil(remain / c.net);
         const d = new Date();
         d.setMonth(d.getMonth() + months);
-        eta = `,照現在的步調,大約 ${months} 個月、也就是 ${d.getFullYear()} 年 ${d.getMonth() + 1} 月就能達成`;
+        line += `。照現在的步調,大約再 ${months} 個月,也就是 ${d.getFullYear()} 年 ${d.getMonth() + 1} 月,你就能親手把它實現。終點線,已經看得見了`;
+      } else if (pct >= 100) {
+        line += `,你已經達標了,好好為自己慶祝一下!`;
       }
-      parts.push(`目標「${g.label}」已經完成 ${pct} 趴${eta}。`);
+      parts.push(line + "。");
     }
 
     const r = data.retire || {};
     const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
     if (spend > 0 && wr > 0) {
       const fi = (spend * 12) / (wr / 100);
-      parts.push(`退休方面,依你設定每月 ${sayNum(spend)} 的開銷與 ${wr} 趴的提領率,大約需要準備 ${sayNum(fi)} 才能安心退休。`);
+      parts.push(`而那個最遠的夢——退休。若你想往後每月安穩花用 ${sayNum(spend)},大約準備 ${sayNum(fi)},就能換來不再為錢焦慮的自由。聽起來很大,但你今天的每一步,都在替未來的自己鋪路。`);
     }
 
-    parts.push(`持續記錄、穩定累積,財務自由就在不遠處。`);
+    parts.push(`財富從來不是一夜之間,而是一次次小小的堅持累積而成。你已經在路上了,而我會一直陪著你。`);
     return parts.join("");
   };
   const story = buildStory();

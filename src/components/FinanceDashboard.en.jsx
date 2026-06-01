@@ -659,16 +659,24 @@ export default function FinanceDashboard() {
   const buildStory = () => {
     const c = calc;
     const parts = [];
+    const hour = new Date().getHours();
+    const greet = hour < 5 ? "It's late, yet here you are caring about your money — that says a lot about you." : hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening, you've earned some rest.";
+    parts.push(greet);
+
     if (c.netWorth > 0)
-      parts.push(`Your net worth right now is ${sayNum(c.netWorth)}, that's ${sayNum(c.assets)} in assets minus ${sayNum(c.liab)} in debt.`);
+      parts.push(`First, some good news — your net worth right now stands at ${sayNum(c.netWorth)}. That's ${sayNum(c.assets)} in assets, holding up ${sayNum(c.liab)} in debt, and what's left is truly yours. Every dollar is proof of your effort.`);
     else if (c.assets > 0 || c.liab > 0)
-      parts.push(`Your net worth is still negative — don't worry, paying down debt step by step will turn it positive.`);
+      parts.push(`Your net worth is still below the surface, but don't lose heart. Debt is just a stretch of road you haven't finished — not the destination. By facing it today, you've already beaten yesterday's you.`);
     else
-      parts.push(`You haven't entered much yet. Tap Guided fill or Load sample, and I'll tell your full financial story.`);
+      parts.push(`Our story is still a blank page, and that's the exciting part. Tap Guided fill or Load sample, and let me help you write the first line.`);
 
     if (c.income > 0 || c.expense > 0) {
-      const verdict = c.rate >= 30 ? "which is excellent" : c.rate >= 20 ? "which is healthy" : c.rate >= 0 ? "with room to improve" : "you spent more than you earned this month, so watch out";
-      parts.push(`This month you earned ${sayNum(c.income)} and spent ${sayNum(c.expense)}, leaving ${sayNum(c.net)}, a savings rate of ${c.rate.toFixed(0)} percent, ${verdict}.`);
+      let verdict;
+      if (c.rate >= 30) verdict = `A savings rate of ${c.rate.toFixed(0)} percent — that's beautiful. Most people only dream of this, and you did it.`;
+      else if (c.rate >= 20) verdict = `A savings rate of ${c.rate.toFixed(0)} percent keeps you steady on a healthy track. Keep it up.`;
+      else if (c.rate >= 0) verdict = `A savings rate of ${c.rate.toFixed(0)} percent isn't huge, but saving anything is a win. Let's nudge it higher together.`;
+      else verdict = `You spent more than you earned this month — don't be hard on yourself. Life has its ups and downs; seeing it clearly means next month is a fresh chance.`;
+      parts.push(`This month, ${sayNum(c.income)} came in, ${sayNum(c.expense)} went out, and ${sayNum(c.net)} stayed. ${verdict}`);
     }
 
     const cats = {};
@@ -677,35 +685,37 @@ export default function FinanceDashboard() {
       cats[k] = (cats[k] || 0) + (Number(e.value) || 0);
     });
     const topCat = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
-    if (topCat && topCat[1] > 0) parts.push(`Your biggest category is ${topCat[0]}, at ${sayNum(topCat[1])} a month.`);
+    if (topCat && topCat[1] > 0) parts.push(`Your money runs out fastest on ${topCat[0]}, at ${sayNum(topCat[1])} a month. Seeing where it goes is the key to changing it.`);
 
     if (c.invest > 0) {
       const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
-      parts.push(`Your investments total ${sayNum(c.invest)} across ${data.portfolio.length} holdings${top ? `, the largest being ${top.label}` : ""}.`);
+      parts.push(`You also have ${sayNum(c.invest)} out there working for you, spread across ${data.portfolio.length} holdings${top ? `, with ${top.label} as your biggest ally` : ""}. That money quietly grows while you sleep.`);
     }
 
     const g = (data.goals || [])[0];
     if (g && Number(g.target) > 0) {
       const pct = Math.round((Number(g.current) / Number(g.target)) * 100);
       const remain = Math.max(0, Number(g.target) - Number(g.current));
-      let eta = "";
+      let line = `And your dreams — "${g.label}" is already ${pct} percent of the way there`;
       if (c.net > 0 && remain > 0) {
         const months = Math.ceil(remain / c.net);
         const d = new Date();
         d.setMonth(d.getMonth() + months);
-        eta = `, and at your current pace you'll reach it in about ${months} months, around ${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+        line += `. At this pace, in about ${months} months — around ${d.toLocaleDateString("en-US", { month: "long", year: "numeric" })} — you'll make it real. The finish line is in sight`;
+      } else if (pct >= 100) {
+        line += `, and you've reached it — take a moment to celebrate!`;
       }
-      parts.push(`Your goal "${g.label}" is ${pct} percent complete${eta}.`);
+      parts.push(line + ".");
     }
 
     const r = data.retire || {};
     const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
     if (spend > 0 && wr > 0) {
       const fi = (spend * 12) / (wr / 100);
-      parts.push(`For retirement, with ${sayNum(spend)} of monthly spending and a ${wr} percent withdrawal rate, you'll need about ${sayNum(fi)} to retire comfortably.`);
+      parts.push(`And the furthest dream of all — retirement. To spend ${sayNum(spend)} a month with peace of mind, you'd need about ${sayNum(fi)} to buy back your freedom from money worries. It sounds like a lot, but every step you take today paves the road for your future self.`);
     }
 
-    parts.push(`Keep tracking and stay consistent — financial freedom is within reach.`);
+    parts.push(`Wealth is never built overnight — it's the quiet sum of small, repeated choices. You're already on your way, and I'll be right here with you.`);
     return parts.join(" ");
   };
   const story = buildStory();
