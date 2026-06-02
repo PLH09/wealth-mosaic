@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { STRINGS, VOICE, fonts, currencyList } from "../i18n.jsx";
+import { STRINGS, VOICE, fonts } from "../i18n.jsx";
 
 /* ----------------------------- persistent storage ----------------------------- */
 const KEY = "finance:data:v3";
@@ -225,7 +225,6 @@ export default function FinanceDashboard({ locale = "en" }) {
   const t = STRINGS[locale] || STRINGS.en;
   const voice = VOICE[locale] || null;
   const fontStack = fonts(locale);
-  const CURRENCIES = useMemo(() => currencyList(locale), [locale]);
   const CSS = useMemo(() => buildCSS(fontStack), [locale]);
   const EXPENSE_CATS = t.cats.expense, ASSET_TYPES = t.cats.asset, INVEST_CATS = t.cats.invest;
 
@@ -315,7 +314,7 @@ export default function FinanceDashboard({ locale = "en" }) {
     });
   };
 
-  const cur = data?.currency || t.sampleCurrency;
+  const cur = "$";
 
   const applyUpdates = (u) => {
     if (!u) return [];
@@ -550,11 +549,6 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div className="fd-net-label">{t.netLabel}</div>
             <div className={"fd-net fd-tabnum " + (calc.netWorth >= 0 ? "" : "neg")}>{money(calc.netWorth, cur)}</div>
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <select className="fd-toolbtn" value={cur} title={t.currencyTitle} aria-label={t.currencyTitle}
-                onChange={(e) => update({ currency: e.target.value })}>
-                {CURRENCIES.some((c) => c.sym === cur) ? null : <option value={cur}>{cur}</option>}
-                {CURRENCIES.map((c) => <option key={c.sym} value={c.sym}>{c.sym}・{c.name}</option>)}
-              </select>
               <button className="fd-toolbtn gold" onClick={openQA}>{t.btnGuided}</button>
               <button className="fd-toolbtn" onClick={openStory}>{t.btnRecap}</button>
               <button className="fd-toolbtn" onClick={() => update({ ...t.sample() })}>{t.btnSample}</button>
