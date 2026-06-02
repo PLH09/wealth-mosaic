@@ -199,20 +199,6 @@ export const VOICE = {
   ko: null,
 };
 
-/* ----------------------------- shared currency list ----------------------------- */
-const CURRENCY_NAMES = {
-  en: ["Taiwan Dollar", "US Dollar", "Euro", "British Pound", "Japanese Yen", "Chinese Yuan", "Hong Kong Dollar", "Singapore Dollar", "Australian Dollar", "Canadian Dollar", "Korean Won", "Thai Baht", "Malaysian Ringgit"],
-  "zh-TW": ["新台幣", "美元", "歐元", "英鎊", "日圓", "人民幣", "港幣", "新加坡幣", "澳幣", "加幣", "韓元", "泰銖", "馬來西亞令吉"],
-  "zh-CN": ["新台币", "美元", "欧元", "英镑", "日元", "人民币", "港币", "新加坡元", "澳元", "加元", "韩元", "泰铢", "马来西亚林吉特"],
-  ja: ["台湾ドル", "米ドル", "ユーロ", "英ポンド", "日本円", "人民元", "香港ドル", "シンガポールドル", "豪ドル", "加ドル", "韓国ウォン", "タイバーツ", "マレーシアリンギット"],
-  ko: ["대만 달러", "미국 달러", "유로", "영국 파운드", "일본 엔", "중국 위안", "홍콩 달러", "싱가포르 달러", "호주 달러", "캐나다 달러", "한국 원", "태국 바트", "말레이시아 링깃"],
-};
-const CURRENCY_SYMS = ["NT$", "US$", "€", "£", "JP¥", "CN¥", "HK$", "S$", "A$", "C$", "₩", "฿", "RM"];
-export function currencyList(code) {
-  const names = CURRENCY_NAMES[code] || CURRENCY_NAMES.en;
-  return CURRENCY_SYMS.map((sym, i) => ({ sym, name: names[i] }));
-}
-
 /* ----------------------------- shortMoney variants ----------------------------- */
 const shortWestern = (n) => {
   const v = Number(n) || 0;
@@ -265,7 +251,6 @@ export const fonts = (code) => FONTS[code] || FONTS.en;
 export const STRINGS = {
   en: {
     voiceLang: "en-US",
-    sampleCurrency: "$",
     short: shortWestern,
     cats: {
       expense: ["Housing", "Food", "Transport", "Insurance", "Leisure", "Subscriptions", "Other"],
@@ -276,7 +261,6 @@ export const STRINGS = {
     eyebrow: "Personal Wealth",
     privacy: "🔒 Your data stays in your browser — nothing is uploaded. Use “Export” to back up anytime.",
     netLabel: "Current net worth",
-    currencyTitle: "Display currency",
     btnGuided: "✦ Guided fill",
     btnRecap: "🔊 Voice recap",
     btnSample: "Load sample",
@@ -400,7 +384,6 @@ export const STRINGS = {
       { q: "How much can you invest toward retirement monthly?", hint: "Your monthly surplus is a good starting estimate", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
     sample: () => ({
-      currency: "$",
       recurring: {
         income: [{ id: uid(), label: "Salary", value: 6000 }],
         expenses: [
@@ -479,7 +462,6 @@ export const STRINGS = {
 
   "zh-TW": {
     voiceLang: "zh-TW",
-    sampleCurrency: "NT$",
     short: shortCJK("億", "萬"),
     cats: {
       expense: ["居住", "飲食", "交通", "保險", "娛樂", "訂閱", "其他"],
@@ -490,7 +472,6 @@ export const STRINGS = {
     eyebrow: "Personal Wealth",
     privacy: "🔒 資料只存在你的瀏覽器，不會上傳。可隨時「匯出」備份。",
     netLabel: "目前淨資產",
-    currencyTitle: "顯示貨幣",
     btnGuided: "✦ 引導填寫",
     btnRecap: "🔊 語音總結",
     btnSample: "載入範例",
@@ -614,7 +595,6 @@ export const STRINGS = {
       { q: "每月能投入多少做退休準備?", hint: "可先用每月結餘估", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
     sample: () => ({
-      currency: "NT$",
       recurring: {
         income: [{ id: uid(), label: "月薪", value: 65000 }],
         expenses: [
@@ -693,7 +673,6 @@ export const STRINGS = {
 
   "zh-CN": {
     voiceLang: "zh-CN",
-    sampleCurrency: "CN¥",
     short: shortCJK("亿", "万"),
     cats: {
       expense: ["居住", "饮食", "交通", "保险", "娱乐", "订阅", "其他"],
@@ -704,7 +683,6 @@ export const STRINGS = {
     eyebrow: "Personal Wealth",
     privacy: "🔒 数据只存在你的浏览器，不会上传。可随时「导出」备份。",
     netLabel: "目前净资产",
-    currencyTitle: "显示货币",
     btnGuided: "✦ 引导填写",
     btnRecap: "🔊 语音总结",
     btnSample: "载入示例",
@@ -828,7 +806,6 @@ export const STRINGS = {
       { q: "每月能投入多少做退休准备?", hint: "可先用每月结余估", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
     sample: () => ({
-      currency: "CN¥",
       recurring: {
         income: [{ id: uid(), label: "月薪", value: 18000 }],
         expenses: [
@@ -907,7 +884,6 @@ export const STRINGS = {
 
   ja: {
     voiceLang: "ja-JP",
-    sampleCurrency: "JP¥",
     short: shortCJK("億", "万"),
     cats: {
       expense: ["住居", "食費", "交通", "保険", "娯楽", "サブスク", "その他"],
@@ -918,7 +894,6 @@ export const STRINGS = {
     eyebrow: "Personal Wealth",
     privacy: "🔒 データはブラウザ内にのみ保存され、アップロードされません。「エクスポート」でいつでもバックアップできます。",
     netLabel: "現在の純資産",
-    currencyTitle: "表示通貨",
     btnGuided: "✦ ガイド入力",
     btnRecap: "🔊 音声まとめ",
     btnSample: "サンプル読込",
@@ -1042,7 +1017,6 @@ export const STRINGS = {
       { q: "退職に向けて毎月いくら投資できますか?", hint: "毎月の収支が目安になります", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
     sample: () => ({
-      currency: "JP¥",
       recurring: {
         income: [{ id: uid(), label: "給与", value: 320000 }],
         expenses: [
@@ -1121,7 +1095,6 @@ export const STRINGS = {
 
   ko: {
     voiceLang: "ko-KR",
-    sampleCurrency: "₩",
     short: shortCJK("억", "만"),
     cats: {
       expense: ["주거", "식비", "교통", "보험", "여가", "구독", "기타"],
@@ -1132,7 +1105,6 @@ export const STRINGS = {
     eyebrow: "Personal Wealth",
     privacy: "🔒 데이터는 브라우저에만 저장되며 업로드되지 않습니다. 「내보내기」로 언제든 백업하세요.",
     netLabel: "현재 순자산",
-    currencyTitle: "표시 통화",
     btnGuided: "✦ 가이드 입력",
     btnRecap: "🔊 음성 요약",
     btnSample: "샘플 불러오기",
@@ -1256,7 +1228,6 @@ export const STRINGS = {
       { q: "은퇴를 위해 매월 얼마를 투자할 수 있나요?", hint: "매월 잔여가 좋은 기준이 됩니다", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
     sample: () => ({
-      currency: "₩",
       recurring: {
         income: [{ id: uid(), label: "급여", value: 3500000 }],
         expenses: [

@@ -229,7 +229,6 @@ export default function FinanceDashboard({ locale = "en" }) {
   const EXPENSE_CATS = t.cats.expense, ASSET_TYPES = t.cats.asset, INVEST_CATS = t.cats.invest;
 
   const DEFAULT = useMemo(() => ({
-    currency: t.sampleCurrency,
     recurring: { income: [], expenses: [] },
     months: {},
     assets: [],
