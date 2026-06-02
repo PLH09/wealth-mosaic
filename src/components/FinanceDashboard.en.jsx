@@ -5,7 +5,7 @@ import {
 } from "recharts";
 
 /* ----------------------------- persistent storage ----------------------------- */
-const KEY = "finance:data:v2";
+const KEY = "finance:data:en:v2";
 // Persistence via localStorage. Swap this object for an API-backed store
 // (fetch to your own backend) if you later want multi-device sync.
 const store = {
