@@ -24,6 +24,46 @@ const store = {
   },
 };
 
+/* ----------------------------- natural voice picker ----------------------------- */
+/* Browser TTS sounds robotic with the default voice. We scan the installed
+   voices and pick the most natural one for the locale (neural / premium /
+   known-good named voices), so the recap sounds closer to a real person. */
+const PREF_VOICE = {
+  "en-US": ["Samantha", "Ava", "Allison", "Zoe", "Google US English", "Microsoft Aria", "Microsoft Jenny", "Microsoft Ava"],
+  "zh-TW": ["Mei-Jia", "Meijia", "美佳", "Google 國語（臺灣）", "Microsoft HsiaoChen", "Microsoft HanHan"],
+  "zh-CN": ["Tingting", "Ting-Ting", "婷婷", "Google 普通话（中国大陆）", "Microsoft Xiaoxiao", "Microsoft Yaoyao"],
+  "ja-JP": ["Kyoko", "O-ren", "Google 日本語", "Microsoft Nanami", "Microsoft Ayumi"],
+  "ko-KR": ["Yuna", "Google 한국의", "Microsoft SunHi", "Microsoft Heami"],
+};
+const GOOD_VOICE = /natural|neural|premium|enhanced|google|siri/i;
+const BAD_VOICE = /compact|eloquence|novelty|comedy|whisper|fred|albert|zarvox|trinoids|cellos|bells|bad|deranged|hysterical|bahh|boing|jester|organ|superstar|wobble/i;
+function pickVoice(voices, lang) {
+  if (!voices || !voices.length) return null;
+  const base = (lang || "en-US").split("-")[0].toLowerCase();
+  const prefs = PREF_VOICE[lang] || [];
+  const score = (v) => {
+    const name = v.name || "";
+    const vlang = (v.lang || "").toLowerCase();
+    let s;
+    if (vlang === lang.toLowerCase()) s = 40;
+    else if (vlang.startsWith(base)) s = 20;
+    else return -Infinity; // wrong language — never use
+    const idx = prefs.findIndex((p) => name.includes(p));
+    if (idx >= 0) s += 30 - idx;          // earlier in the preference list = better
+    if (GOOD_VOICE.test(name)) s += 15;
+    if (BAD_VOICE.test(name)) s -= 60;
+    if (v.localService === false) s += 5;  // network voices are usually higher quality
+    if (v.default) s += 1;
+    return s;
+  };
+  let best = null, bestScore = -Infinity;
+  for (const v of voices) {
+    const s = score(v);
+    if (s > bestScore) { bestScore = s; best = v; }
+  }
+  return best;
+}
+
 /* ----------------------------- helpers ----------------------------- */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const ym = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -254,6 +294,17 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [speechErr, setSpeechErr] = useState("");
   const recogRef = React.useRef(null);
   const fileRef = React.useRef(null);
+  const voicesRef = React.useRef([]);
+  const speakCancelRef = React.useRef(false);
+
+  // load installed TTS voices (async on most browsers) so we can pick a natural one
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const load = () => { voicesRef.current = window.speechSynthesis.getVoices() || []; };
+    load();
+    window.speechSynthesis.addEventListener?.("voiceschanged", load);
+    return () => { try { window.speechSynthesis.removeEventListener?.("voiceschanged", load); } catch { /* noop */ } };
+  }, []);
   const [storyOpen, setStoryOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
@@ -494,6 +545,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   const story = t.story(calc, data, H);
 
   const stopStory = () => {
+    speakCancelRef.current = true; // guard so chained sentences don't keep playing
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* no-op */ }
     setSpeaking(false);
   };
@@ -502,14 +554,35 @@ export default function FinanceDashboard({ locale = "en" }) {
       alert(t.speechUnsupported);
       return;
     }
-    window.speechSynthesis.cancel();
-    const u = new window.SpeechSynthesisUtterance(story);
-    u.lang = t.voiceLang;
-    u.rate = 1.0;
-    u.onend = () => setSpeaking(false);
-    u.onerror = () => setSpeaking(false);
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    speakCancelRef.current = false;
+
+    const voice = pickVoice(voicesRef.current, t.voiceLang);
+    // Split into sentences so each gets a natural cadence + slight pause between
+    // them. Latin "." only splits when followed by space, so decimals like "1.2"
+    // and amounts stay intact; CJW enders 。！？ split directly.
+    const chunks = String(story)
+      .replace(/\s+/g, " ")
+      .split(/(?<=[。！？])\s*|(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!chunks.length) chunks.push(String(story));
+
     setSpeaking(true);
-    window.speechSynthesis.speak(u);
+    let i = 0;
+    const speakNext = () => {
+      if (speakCancelRef.current || i >= chunks.length) { setSpeaking(false); return; }
+      const u = new window.SpeechSynthesisUtterance(chunks[i++]);
+      u.lang = t.voiceLang;
+      if (voice) u.voice = voice;
+      u.rate = 0.95;   // a touch slower reads more human than the default 1.0
+      u.pitch = 1.02;  // very slight lift avoids a flat, robotic tone
+      u.onend = speakNext;
+      u.onerror = () => { if (!speakCancelRef.current) setSpeaking(false); };
+      synth.speak(u);
+    };
+    speakNext();
   };
   const openStory = () => { setStoryOpen(true); };
   const closeStory = () => { stopStory(); setStoryOpen(false); };
