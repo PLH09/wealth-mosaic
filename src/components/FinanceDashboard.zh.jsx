@@ -176,17 +176,19 @@ const SAMPLE = {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
 :root{
-  --bg:#13100c; --bg2:#181410; --surface:#1f1a14; --surface2:#272018;
-  --line:rgba(205,170,107,.14); --line2:rgba(205,170,107,.28);
-  --gold:#cdaa6b; --gold2:#e6cd96; --text:#f3ecdd; --muted:#a89f8c; --dim:#6f685a;
-  --green:#85bb9c; --red:#d68a76;
+  --bg:#f1e8d7; --bg2:#f6efdf; --surface:#fffefb; --surface2:#f3ead5;
+  --ink:#2a2013;
+  --line:rgba(140,110,40,.16); --line2:rgba(140,110,40,.30);
+  --gold:#c2972f; --gold2:#a8842e; --text:#3d3322; --muted:#897c64; --dim:#9a8c72;
+  --green:#3c8a5f; --red:#c45c36;
   --serif:'Fraunces',Georgia,'Songti TC',serif;
   --sans:'Noto Sans TC',-apple-system,BlinkMacSystemFont,'PingFang TC','Microsoft JhengHei',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 .fd-root{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;
-  background-image:radial-gradient(900px 500px at 80% -10%,rgba(205,170,107,.10),transparent 60%),
-  radial-gradient(700px 500px at -10% 10%,rgba(133,187,156,.06),transparent 55%);
+  background-image:radial-gradient(900px 500px at 80% -10%,rgba(194,151,47,.12),transparent 60%),
+  radial-gradient(700px 500px at -10% 10%,rgba(60,138,95,.07),transparent 55%),
+  linear-gradient(160deg,#fdf8ee,#f1e8d7 52%,#e9dec9);
   -webkit-font-smoothing:antialiased;}
 .fd-wrap{max-width:1040px;margin:0 auto;padding:26px 18px 80px;}
 .fd-tabnum{font-variant-numeric:tabular-nums;}
@@ -195,14 +197,14 @@ const CSS = `
   animation:rise .6s ease both;}
 .fd-eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500;}
 .fd-privacy{font-size:12px;color:var(--muted);margin-top:8px;max-width:380px;line-height:1.4;}
-.story-text{font-size:15px;line-height:1.85;color:var(--text);background:rgba(205,170,107,.06);border:1px solid rgba(205,170,107,.18);border-radius:14px;padding:16px 18px;letter-spacing:.01em;}
-.fd-title{font-family:var(--serif);font-size:30px;font-weight:600;line-height:1.05;margin-top:6px;letter-spacing:.01em;}
-.fd-net{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:.01em;}
+.story-text{font-size:15px;line-height:1.85;color:var(--text);background:rgba(194,151,47,.06);border:1px solid rgba(194,151,47,.18);border-radius:14px;padding:16px 18px;letter-spacing:.01em;}
+.fd-title{font-family:var(--serif);font-size:30px;font-weight:600;line-height:1.05;margin-top:6px;letter-spacing:.01em;color:var(--ink);}
+.fd-net{font-family:var(--serif);font-size:34px;font-weight:600;letter-spacing:.01em;color:var(--ink);}
 .fd-net-row{text-align:right;}
 .fd-net-label{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);}
 .fd-toolbtn{background:transparent;border:1px solid var(--line2);color:var(--muted);font-family:var(--sans);
   font-size:12px;padding:7px 12px;border-radius:999px;cursor:pointer;transition:.18s;}
-.fd-toolbtn:hover{color:var(--text);border-color:var(--gold);background:rgba(205,170,107,.07);}
+.fd-toolbtn:hover{color:var(--text);border-color:var(--gold);background:rgba(194,151,47,.07);}
 .fd-tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:22px;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none;}
 .fd-tabs::-webkit-scrollbar{display:none;}
 .fd-tab{background:none;border:none;color:var(--dim);font-family:var(--sans);font-size:14.5px;font-weight:500;
@@ -217,18 +219,18 @@ const CSS = `
 @media(max-width:760px){.cols-4{grid-template-columns:repeat(2,1fr);}.cols-3{grid-template-columns:1fr;}.cols-2{grid-template-columns:1fr;}}
 .card{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);
   border-radius:16px;padding:18px;animation:rise .55s ease both;}
-.card.glow{box-shadow:0 0 0 1px rgba(205,170,107,.08),0 24px 50px -30px rgba(0,0,0,.8);}
+.card.glow{box-shadow:0 0 0 1px rgba(194,151,47,.10),0 24px 50px -30px rgba(140,110,40,.22);}
 .kpi-l{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
-.kpi-v{font-family:var(--serif);font-size:25px;font-weight:600;margin-top:9px;}
+.kpi-v{font-family:var(--serif);font-size:25px;font-weight:600;margin-top:9px;color:var(--ink);}
 .kpi-sub{font-size:12px;color:var(--dim);margin-top:4px;}
 .pos{color:var(--green);} .neg{color:var(--red);}
 .sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;}
-.sec-t{font-family:var(--serif);font-size:18px;font-weight:600;}
+.sec-t{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--ink);}
 .sec-sub{font-size:12px;color:var(--dim);}
 .row{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);}
 .row:last-of-type{border-bottom:none;}
 .row .lbl{font-size:14px;color:var(--text);}
-.row .cat{font-size:11px;color:var(--gold);background:rgba(205,170,107,.1);padding:2px 8px;border-radius:999px;margin-left:8px;}
+.row .cat{font-size:11px;color:var(--gold);background:rgba(194,151,47,.1);padding:2px 8px;border-radius:999px;margin-left:8px;}
 .row .amt{font-variant-numeric:tabular-nums;font-size:14px;color:var(--text);}
 .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;padding:0 4px;transition:.15s;}
 .del:hover{color:var(--red);}
@@ -243,18 +245,18 @@ const CSS = `
 .empty{color:var(--dim);font-size:13px;padding:14px 0;text-align:center;}
 .gauge-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
 .gauge{--p:0;width:120px;height:120px;border-radius:50%;flex-shrink:0;
-  background:conic-gradient(var(--gold) calc(var(--p)*1%),rgba(255,255,255,.06) 0);
+  background:conic-gradient(var(--gold) calc(var(--p)*1%),rgba(42,32,19,.07) 0);
   display:flex;align-items:center;justify-content:center;position:relative;transition:.6s;}
 .gauge::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--surface);}
 .gauge .gv{position:relative;font-family:var(--serif);font-size:26px;font-weight:600;}
-.bar{height:9px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:8px;}
+.bar{height:9px;border-radius:999px;background:rgba(42,32,19,.08);overflow:hidden;margin-top:8px;}
 .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .7s ease;}
 .goal-meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:7px;}
 .tag{font-size:11.5px;color:var(--green);}
 .legend{display:flex;flex-direction:column;gap:9px;}
 .legi{display:flex;align-items:center;gap:9px;font-size:13px;}
 .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
-.insight{border:1px solid var(--line2);background:linear-gradient(180deg,rgba(205,170,107,.07),transparent);
+.insight{border:1px solid var(--line2);background:linear-gradient(180deg,rgba(194,151,47,.07),transparent);
   border-radius:14px;padding:16px 18px;font-size:14px;line-height:1.7;color:var(--text);}
 .insight b{color:var(--gold2);font-family:var(--serif);}
 .note{font-size:12px;color:var(--dim);line-height:1.6;margin-top:10px;}
@@ -263,26 +265,26 @@ const CSS = `
 .stagger>*{animation:rise .5s ease both;}
 .stagger>*:nth-child(2){animation-delay:.05s}.stagger>*:nth-child(3){animation-delay:.1s}
 .stagger>*:nth-child(4){animation-delay:.15s}.stagger>*:nth-child(5){animation-delay:.2s}
-.fd-toolbtn.gold{border-color:var(--gold);color:var(--gold2);background:rgba(205,170,107,.1);}
-.fd-toolbtn.gold:hover{background:rgba(205,170,107,.18);color:var(--gold2);}
+.fd-toolbtn.gold{border-color:var(--gold);color:var(--gold2);background:rgba(194,151,47,.1);}
+.fd-toolbtn.gold:hover{background:rgba(194,151,47,.18);color:var(--gold2);}
 .fab{position:fixed;right:22px;bottom:22px;width:56px;height:56px;border-radius:50%;border:1px solid var(--gold);
   background:linear-gradient(160deg,var(--gold2),var(--gold));color:#1b1610;font-size:22px;cursor:pointer;z-index:40;
-  box-shadow:0 12px 30px -8px rgba(205,170,107,.5);transition:.2s;animation:rise .5s ease both;}
-.fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 36px -8px rgba(205,170,107,.65);}
-.modal-bg{position:fixed;inset:0;background:rgba(8,6,4,.66);backdrop-filter:blur(4px);z-index:50;
+  box-shadow:0 12px 30px -8px rgba(194,151,47,.5);transition:.2s;animation:rise .5s ease both;}
+.fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 36px -8px rgba(194,151,47,.65);}
+.modal-bg{position:fixed;inset:0;background:rgba(42,32,19,.40);backdrop-filter:blur(4px);z-index:50;
   display:flex;align-items:flex-end;justify-content:center;animation:fade .25s ease both;padding:0;}
 @media(min-width:640px){.modal-bg{align-items:center;padding:20px;}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 .modal{width:100%;max-width:480px;height:78vh;max-height:620px;background:linear-gradient(180deg,var(--surface),var(--bg2));
   border:1px solid var(--line2);border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;
-  box-shadow:0 -20px 60px -20px rgba(0,0,0,.8);animation:slideup .3s cubic-bezier(.2,.8,.2,1) both;}
+  box-shadow:0 -20px 60px -20px rgba(140,110,40,.28);animation:slideup .3s cubic-bezier(.2,.8,.2,1) both;}
 @media(min-width:640px){.modal{border-radius:20px;height:600px;}}
 @keyframes slideup{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
 .modal-h{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);}
-.qa-prog{height:3px;background:rgba(255,255,255,.06);}
+.qa-prog{height:3px;background:rgba(42,32,19,.07);}
 .qa-prog > i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .4s ease;}
 .qa-body{flex:1;overflow-y:auto;padding:26px 22px;display:flex;flex-direction:column;}
-.qa-q{font-family:var(--serif);font-size:22px;font-weight:600;line-height:1.3;animation:rise .35s ease both;}
+.qa-q{font-family:var(--serif);font-size:22px;font-weight:600;line-height:1.3;animation:rise .35s ease both;color:var(--ink);}
 .qa-hint{font-size:13px;color:var(--dim);margin-top:8px;line-height:1.6;}
 .qa-inputs{display:flex;flex-direction:column;gap:10px;margin-top:22px;}
 .qa-inputs .inp{font-size:16px;padding:13px 14px;}
@@ -292,16 +294,16 @@ const CSS = `
 .qa-actions{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:24px;}
 .qa-actions .addbtn{padding:10px 22px;}
 .changed{display:flex;flex-wrap:wrap;gap:5px;}
-.chip{font-size:11.5px;color:var(--green);background:rgba(133,187,156,.12);border:1px solid rgba(133,187,156,.25);
+.chip{font-size:11.5px;color:var(--green);background:rgba(60,138,95,.12);border:1px solid rgba(60,138,95,.25);
   padding:3px 8px;border-radius:999px;}
 .mic{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:2px;
   background:var(--surface2);border:1px solid var(--line2);color:var(--muted);font-family:var(--sans);
   font-size:14px;padding:11px;border-radius:10px;cursor:pointer;transition:.18s;}
 .mic:hover{color:var(--text);border-color:var(--gold);}
 .mic .mic-dot{width:9px;height:9px;border-radius:50%;background:var(--dim);transition:.18s;}
-.mic.on{color:var(--red);border-color:var(--red);background:rgba(214,138,118,.1);}
+.mic.on{color:var(--red);border-color:var(--red);background:rgba(196,92,54,.1);}
 .mic.on .mic-dot{background:var(--red);animation:pulse 1s infinite;}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(214,138,118,.5)}70%{box-shadow:0 0 0 8px rgba(214,138,118,0)}100%{box-shadow:0 0 0 0 rgba(214,138,118,0)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,92,54,.5)}70%{box-shadow:0 0 0 8px rgba(196,92,54,0)}100%{box-shadow:0 0 0 0 rgba(196,92,54,0)}}
 .qa-heard{font-size:13px;color:var(--gold2);margin-top:12px;font-style:italic;}
 .qa-err{font-size:13px;color:var(--red);margin-top:10px;line-height:1.5;}
 `;
@@ -742,7 +744,7 @@ export default function FinanceDashboard() {
         <div className="fd-head">
           <div>
             <div className="fd-eyebrow">Personal Wealth</div>
-            <h1 className="fd-title">資產儀表板</h1>
+            <h1 className="fd-title">財富拼圖</h1>
             <div className="fd-privacy">🔒 資料只存在你的瀏覽器，不會上傳。可隨時「匯出」備份。</div>
           </div>
           <div className="fd-net-row">
@@ -1103,23 +1105,23 @@ function NetWorthChart({ hist, cur }) {
       <LineChart data={hist} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
         <defs>
           <linearGradient id="gld" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#cdaa6b" stopOpacity={0.9} />
-            <stop offset="100%" stopColor="#cdaa6b" stopOpacity={0.2} />
+            <stop offset="0%" stopColor="#c2972f" stopOpacity={0.9} />
+            <stop offset="100%" stopColor="#c2972f" stopOpacity={0.2} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
-        <XAxis dataKey="m" tick={{ fill: "#a89f8c", fontSize: 11 }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={shortMoney} tick={{ fill: "#a89f8c", fontSize: 11 }} axisLine={false} tickLine={false} width={48} />
+        <CartesianGrid stroke="rgba(42,32,19,.07)" vertical={false} />
+        <XAxis dataKey="m" tick={{ fill: "#897c64", fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis tickFormatter={shortMoney} tick={{ fill: "#897c64", fontSize: 11 }} axisLine={false} tickLine={false} width={48} />
         <Tooltip
-          contentStyle={{ background: "#1f1a14", border: "1px solid rgba(205,170,107,.3)", borderRadius: 10, color: "#f3ecdd" }}
-          formatter={(v) => [money(v, cur), "淨資產"]} labelStyle={{ color: "#a89f8c" }} />
-        <Line type="monotone" dataKey="v" stroke="url(#gld)" strokeWidth={2.5} dot={{ r: 3, fill: "#cdaa6b" }} activeDot={{ r: 5 }} />
+          contentStyle={{ background: "#fffefb", border: "1px solid rgba(194,151,47,.3)", borderRadius: 10, color: "#3d3322" }}
+          formatter={(v) => [money(v, cur), "淨資產"]} labelStyle={{ color: "#897c64" }} />
+        <Line type="monotone" dataKey="v" stroke="url(#gld)" strokeWidth={2.5} dot={{ r: 3, fill: "#c2972f" }} activeDot={{ r: 5 }} />
       </LineChart>
     </ResponsiveContainer>
   );
 }
 
-const PIE_COLORS = ["#cdaa6b", "#85bb9c", "#d68a76", "#9a8fd6", "#6fb0c9", "#d6b85a", "#a89f8c"];
+const PIE_COLORS = ["#c2972f", "#3c8a5f", "#c45c36", "#9a8fd6", "#6fb0c9", "#d6b85a", "#897c64"];
 function AllocChart({ portfolio, cur }) {
   const byCat = useMemo(() => {
     const m = {};
@@ -1135,7 +1137,7 @@ function AllocChart({ portfolio, cur }) {
           <Pie data={byCat} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={2} stroke="none">
             {byCat.map((e, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
           </Pie>
-          <Tooltip contentStyle={{ background: "#1f1a14", border: "1px solid rgba(205,170,107,.3)", borderRadius: 10 }}
+          <Tooltip contentStyle={{ background: "#fffefb", border: "1px solid rgba(194,151,47,.3)", borderRadius: 10 }}
             formatter={(v) => money(v, cur)} />
         </PieChart>
       </ResponsiveContainer>
@@ -1307,14 +1309,14 @@ function RetirementView({ ret, onChange, calc, cur }) {
             <div className="sec-h"><div className="sec-t">資產 vs 所需金額</div><div className="sec-sub">兩線交會 = 財務自由</div></div>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={m.series} margin={{ top: 8, right: 10, left: -2, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(255,255,255,.05)" vertical={false} />
-                <XAxis dataKey="age" tickFormatter={(a) => a + "歲"} tick={{ fill: "#a89f8c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={shortMoney} tick={{ fill: "#a89f8c", fontSize: 11 }} axisLine={false} tickLine={false} width={50} />
-                <Tooltip contentStyle={{ background: "#1f1a14", border: "1px solid rgba(205,170,107,.3)", borderRadius: 10, color: "#f3ecdd" }}
+                <CartesianGrid stroke="rgba(42,32,19,.07)" vertical={false} />
+                <XAxis dataKey="age" tickFormatter={(a) => a + "歲"} tick={{ fill: "#897c64", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={shortMoney} tick={{ fill: "#897c64", fontSize: 11 }} axisLine={false} tickLine={false} width={50} />
+                <Tooltip contentStyle={{ background: "#fffefb", border: "1px solid rgba(194,151,47,.3)", borderRadius: 10, color: "#3d3322" }}
                   formatter={(v, n) => [money(v, cur), n]} labelFormatter={(a) => a + " 歲"} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="累積資產" stroke="#cdaa6b" strokeWidth={2.6} dot={false} />
-                <Line type="monotone" dataKey="所需金額" stroke="#85bb9c" strokeWidth={2} strokeDasharray="6 4" dot={false} />
+                <Line type="monotone" dataKey="累積資產" stroke="#c2972f" strokeWidth={2.6} dot={false} />
+                <Line type="monotone" dataKey="所需金額" stroke="#3c8a5f" strokeWidth={2} strokeDasharray="6 4" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

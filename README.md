@@ -1,4 +1,4 @@
-# Wealth Dashboard · 資產儀表板
+# Wealth Mosaic · 財富拼圖
 
 A personal finance dashboard built with React + Vite. Tracks cash flow, savings
 rate, net worth, investment allocation, financial goals, and retirement
