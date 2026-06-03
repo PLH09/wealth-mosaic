@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { STRINGS, VOICE, fonts } from "../i18n.jsx";
+import { STRINGS, VOICE, fonts, HEALTH } from "../i18n.jsx";
 
 /* ----------------------------- persistent storage ----------------------------- */
 const KEY = "finance:data:v3";
@@ -62,6 +62,162 @@ function pickVoice(voices, lang) {
     if (s > bestScore) { bestScore = s; best = v; }
   }
   return best;
+}
+
+/* ----------------------------- financial health check ----------------------------- */
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+/* Turn the live figures into a 0-100 score across 4 friendly dimensions. */
+function computeHealth(calc) {
+  const sSav = clamp((calc.rate / 30) * 100, 0, 100);                 // 30% savings rate = full marks
+  const dr = calc.assets > 0 ? calc.liab / calc.assets : (calc.liab > 0 ? 1 : 0);
+  const sDebt = clamp((1 - dr) * 100, 0, 100);                        // less debt vs assets = healthier
+  const investRatio = calc.netWorth > 0 ? calc.invest / calc.netWorth : 0;
+  const sInv = clamp((investRatio / 0.4) * 100, 0, 100);             // ~40% invested = full marks
+  const cfRatio = calc.income > 0 ? calc.net / calc.income : (calc.net > 0 ? 1 : 0);
+  const sCash = clamp((cfRatio / 0.3) * 100, 0, 100);               // 30% surplus = full marks
+  const dims = { savings: Math.round(sSav), debt: Math.round(sDebt), invest: Math.round(sInv), cashflow: Math.round(sCash) };
+  const score = Math.round((sSav + sDebt + sInv + sCash) / 4);
+  return { score, dims };
+}
+
+const HW = 760, HH = 1180; // report canvas size
+const xmlEsc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function wrapText(str, maxLatin, maxCjk) {
+  const isLatin = /\s/.test(str.trim()) && /[a-zA-Z]/.test(str);
+  if (isLatin) {
+    const words = str.split(/\s+/);
+    const lines = [];
+    let cur = "";
+    for (const w of words) {
+      if ((cur + " " + w).trim().length > maxLatin) { if (cur) lines.push(cur); cur = w; }
+      else cur = (cur ? cur + " " : "") + w;
+    }
+    if (cur) lines.push(cur);
+    return lines.slice(0, 2);
+  }
+  const lines = [];
+  for (let i = 0; i < str.length; i += maxCjk) lines.push(str.slice(i, i + maxCjk));
+  return lines.slice(0, 2);
+}
+
+/* Build the whole report as an SVG string (system fonts so it also rasterizes
+   to PNG cleanly). Lively cream theme with little doodles to match the app. */
+function buildHealthSVG({ score, dims, calc, cur, h, shortFn, dateStr }) {
+  const C = "#5f553f", GOLD = "#c2972f", GOLD2 = "#a07d1e", GREEN = "#3f7d57", RED = "#c0603f";
+  const TRACK = "#efe7d3", CARD = "#fffefb", SOFT = "#faf4e6", BORDER = "rgba(140,110,40,.25)";
+  const sans = "-apple-system, system-ui, 'Noto Sans', 'PingFang TC', 'Hiragino Sans', 'Malgun Gothic', sans-serif";
+  const serif = "'Iowan Old Style', 'Songti TC', Georgia, 'Noto Serif', serif";
+  const grade = h.grades.find((g) => score >= g.min) || h.grades[h.grades.length - 1];
+  const barColor = (v) => (v >= 70 ? GREEN : v >= 40 ? GOLD : RED);
+  const money = (n) => "$ " + shortFn(n);
+
+  // gauge geometry
+  const gx = 168, gy = 322, gr = 92, sw = 18;
+  const circ = 2 * Math.PI * gr;
+  const dash = (clamp(score, 0, 100) / 100) * circ;
+
+  // dimension rows
+  const dimDefs = [
+    { key: "savings", icon: "🐷", v: dims.savings },
+    { key: "debt", icon: "🛡️", v: dims.debt },
+    { key: "invest", icon: "🌱", v: dims.invest },
+    { key: "cashflow", icon: "💧", v: dims.cashflow },
+  ];
+  let dimSvg = "";
+  dimDefs.forEach((d, i) => {
+    const y = 470 + i * 70;
+    const fillW = (clamp(d.v, 0, 100) / 100) * 604;
+    dimSvg += `
+      <text x="56" y="${y + 22}" font-size="26" text-anchor="middle">${d.icon}</text>
+      <text x="96" y="${y + 12}" font-family="${sans}" font-size="16" font-weight="600" fill="${C}">${xmlEsc(h.dims[d.key])}</text>
+      <text x="700" y="${y + 12}" font-family="${sans}" font-size="16" font-weight="700" fill="${barColor(d.v)}" text-anchor="end">${d.v}</text>
+      <rect x="96" y="${y + 24}" width="604" height="12" rx="6" fill="${TRACK}"/>
+      <rect x="96" y="${y + 24}" width="${fillW.toFixed(1)}" height="12" rx="6" fill="${barColor(d.v)}"/>`;
+  });
+
+  // key metric mini-cards
+  const metrics = [
+    { label: h.metricLabels.net, val: money(calc.netWorth) },
+    { label: h.metricLabels.rate, val: calc.rate.toFixed(0) + "%" },
+    { label: h.metricLabels.surplus, val: money(calc.net) },
+    { label: h.metricLabels.invest, val: money(calc.invest) },
+  ];
+  const cardW = (712 - 3 * 16) / 4;
+  let metricSvg = "";
+  metrics.forEach((m, i) => {
+    const x = 24 + i * (cardW + 16);
+    metricSvg += `
+      <rect x="${x}" y="790" width="${cardW}" height="88" rx="14" fill="${SOFT}" stroke="${BORDER}"/>
+      <text x="${x + 16}" y="822" font-family="${sans}" font-size="12" fill="#9a8c6e">${xmlEsc(m.label)}</text>
+      <text x="${x + 16}" y="854" font-family="${serif}" font-size="22" fill="${C}">${xmlEsc(m.val)}</text>`;
+  });
+
+  // tips — focus on the 3 weakest dimensions
+  const sorted = [...dimDefs].sort((a, b) => a.v - b.v).slice(0, 3);
+  let tipY = 952;
+  let tipSvg = "";
+  sorted.forEach((d) => {
+    const low = d.v < 60;
+    const key = d.key + (low ? (d.key === "debt" ? "High" : "Low") : "Good");
+    const text = h.tips[key] || "";
+    const lines = wrapText(text, 58, 25);
+    tipSvg += `<text x="56" y="${tipY + 2}" font-size="19" text-anchor="middle">${d.icon}</text>`;
+    lines.forEach((ln, li) => {
+      tipSvg += `<text x="92" y="${tipY + li * 23}" font-family="${sans}" font-size="15" fill="${low ? C : "#7c7050"}">${xmlEsc(ln)}</text>`;
+    });
+    tipY += Math.max(1, lines.length) * 23 + 16;
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${HW}" height="${HH}" viewBox="0 0 ${HW} ${HH}">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#fffdf7"/><stop offset="1" stop-color="#fbf3e2"/>
+      </linearGradient>
+    </defs>
+    <rect width="${HW}" height="${HH}" fill="url(#bg)"/>
+    <rect x="16" y="16" width="${HW - 32}" height="${HH - 32}" rx="28" fill="${CARD}" stroke="${BORDER}"/>
+
+    <!-- header -->
+    <text x="48" y="62" font-family="${sans}" font-size="13" letter-spacing="3" fill="${GOLD2}">PERSONAL WEALTH</text>
+    <text x="48" y="104" font-family="${serif}" font-size="34" fill="${C}">${xmlEsc(h.title)}</text>
+    <text x="48" y="132" font-family="${sans}" font-size="14" fill="#9a8c6e">${xmlEsc(dateStr)}</text>
+    <!-- little plant doodle -->
+    <g transform="translate(636,40)">
+      <ellipse cx="28" cy="78" rx="34" ry="7" fill="rgba(140,110,40,.08)"/>
+      <path d="M12 50 h32 l-4 24 a4 4 0 0 1 -4 3 h-16 a4 4 0 0 1 -4 -3 z" fill="#d9a441"/>
+      <rect x="9" y="44" width="38" height="9" rx="4.5" fill="${GOLD}"/>
+      <path d="M28 44 C28 24 18 18 11 13 C20 16 28 22 28 36 Z" fill="#6faE7a"/>
+      <path d="M28 44 C28 22 39 16 47 12 C38 16 30 22 28 36 Z" fill="#86c08f"/>
+      <circle cx="28" cy="16" r="4.5" fill="#f2c84b"/>
+    </g>
+    <line x1="48" y1="168" x2="712" y2="168" stroke="${BORDER}"/>
+
+    <!-- score gauge -->
+    <circle cx="${gx}" cy="${gy}" r="${gr}" fill="none" stroke="${TRACK}" stroke-width="${sw}"/>
+    <circle cx="${gx}" cy="${gy}" r="${gr}" fill="none" stroke="${GOLD}" stroke-width="${sw}" stroke-linecap="round"
+      stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" transform="rotate(-90 ${gx} ${gy})"/>
+    <text x="${gx}" y="${gy + 6}" font-family="${serif}" font-size="60" fill="${C}" text-anchor="middle">${score}</text>
+    <text x="${gx}" y="${gy + 38}" font-family="${sans}" font-size="15" fill="#9a8c6e" text-anchor="middle">/ 100</text>
+
+    <text x="306" y="262" font-family="${sans}" font-size="14" letter-spacing="1" fill="${GOLD2}">${xmlEsc(h.scoreLabel)}</text>
+    <text x="306" y="322" font-size="46">${grade.face}</text>
+    <text x="368" y="318" font-family="${serif}" font-size="34" fill="${C}">${xmlEsc(grade.label)}</text>
+
+    <!-- dimensions -->
+    ${dimSvg}
+
+    <!-- key metrics -->
+    ${metricSvg}
+
+    <!-- tips -->
+    <text x="48" y="924" font-family="${serif}" font-size="20" fill="${C}">✨ ${xmlEsc(h.tipsTitle)}</text>
+    ${tipSvg}
+
+    <!-- footer -->
+    <line x1="48" y1="${HH - 70}" x2="712" y2="${HH - 70}" stroke="${BORDER}"/>
+    <text x="48" y="${HH - 42}" font-family="${serif}" font-size="15" fill="${GOLD2}">${xmlEsc(h.footer)}</text>
+    <text x="712" y="${HH - 42}" font-family="${sans}" font-size="12" fill="#9a8c6e" text-anchor="end">🔒 ${xmlEsc(h.privacy)}</text>
+  </svg>`;
 }
 
 /* ----------------------------- helpers ----------------------------- */
@@ -307,6 +463,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   }, []);
   const [storyOpen, setStoryOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -587,6 +744,49 @@ export default function FinanceDashboard({ locale = "en" }) {
   const openStory = () => { setStoryOpen(true); };
   const closeStory = () => { stopStory(); setStoryOpen(false); };
 
+  // ---- financial health check report ----
+  const hStr = HEALTH[locale] || HEALTH.en;
+  const health = computeHealth(calc);
+  let dateStr = "";
+  try { dateStr = new Date().toLocaleDateString(t.voiceLang || "en-US", { year: "numeric", month: "long", day: "numeric" }); }
+  catch { dateStr = new Date().toLocaleDateString(); }
+  const healthSVG = buildHealthSVG({ score: health.score, dims: health.dims, calc, cur, h: hStr, shortFn: t.short, dateStr });
+  const openHealth = () => setHealthOpen(true);
+  const closeHealth = () => setHealthOpen(false);
+  const downloadHealth = () => {
+    const blob = new Blob([healthSVG], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = HW * scale; canvas.height = HH * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((b) => {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(b);
+          a.download = `${hStr.title}.png`;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }, "image/png");
+      } catch {
+        const a = document.createElement("a");
+        a.href = url; a.download = `${hStr.title}.svg`;
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    };
+    img.onerror = () => {
+      const a = document.createElement("a");
+      a.href = url; a.download = `${hStr.title}.svg`;
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+    img.src = url;
+  };
+
   // wealth-velocity insight values
   const milestone = data.goals.length
     ? data.goals.reduce((a, b2) => (b2.target - b2.current < a.target - a.current && b2.target > b2.current ? b2 : a))
@@ -623,6 +823,7 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button className="fd-toolbtn gold" onClick={openQA}>{t.btnGuided}</button>
               <button className="fd-toolbtn" onClick={openStory}>{t.btnRecap}</button>
+              <button className="fd-toolbtn gold" onClick={openHealth}>{hStr.btn}</button>
               <button className="fd-toolbtn" onClick={() => update({ ...t.sample() })}>{t.btnSample}</button>
               <button className="fd-toolbtn" onClick={exportData}>{t.btnExport}</button>
               <button className="fd-toolbtn" onClick={() => fileRef.current && fileRef.current.click()}>{t.btnImport}</button>
@@ -956,6 +1157,35 @@ export default function FinanceDashboard({ locale = "en" }) {
                 <button className="addbtn" onClick={closeStory}>{t.close}</button>
               </div>
               <div className="qa-hint" style={{ marginTop: 12 }}>{t.recapHint}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* financial health check report modal */}
+      {healthOpen && (
+        <div className="modal-bg" onClick={closeHealth}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="modal-h">
+              <div>
+                <div className="fd-eyebrow">{hStr.scoreLabel}</div>
+                <div className="sec-t" style={{ fontSize: 17 }}>{hStr.title}</div>
+              </div>
+              <button className="del" style={{ fontSize: 20 }} onClick={closeHealth}>✕</button>
+            </div>
+            <div className="qa-body">
+              <div
+                style={{ width: "100%", borderRadius: 16, overflow: "hidden", boxShadow: "0 12px 30px -16px rgba(140,110,40,.5)" }}
+                dangerouslySetInnerHTML={{ __html: healthSVG.replace('width="760" height="1180"', 'width="100%" height="auto"') }}
+              />
+              <div className="qa-actions" style={{ marginTop: 18 }}>
+                <button className="mic on" onClick={downloadHealth}>
+                  <span className="mic-dot" />
+                  {hStr.download}
+                </button>
+                <div style={{ flex: 1 }} />
+                <button className="addbtn" onClick={closeHealth}>{hStr.close}</button>
+              </div>
             </div>
           </div>
         </div>
