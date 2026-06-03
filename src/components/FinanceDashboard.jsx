@@ -737,6 +737,13 @@ export default function FinanceDashboard({ locale = "en" }) {
     { key: "retire", label: t.tabs.retire },
   ];
 
+  // header headline number is contextual to the active tab (avoids two
+  // competing big figures on tabs that have their own headline metric)
+  const headStat =
+    tab === "cashflow" ? { label: t.monthlySurplus, value: calc.net } :
+    tab === "invest" ? { label: t.invKpiTotal, value: calc.invest } :
+    { label: t.netLabel, value: calc.netWorth };
+
   return (
     <div className="fd-root">
       <style>{CSS}</style>
@@ -749,8 +756,8 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div className="fd-privacy">{t.privacy}</div>
           </div>
           <div className="fd-net-row">
-            <div className="fd-net-label">{t.netLabel}</div>
-            <div className={"fd-net fd-tabnum " + (calc.netWorth >= 0 ? "" : "neg")}>{money(calc.netWorth, cur)}</div>
+            <div className="fd-net-label">{headStat.label}</div>
+            <div className={"fd-net fd-tabnum " + (headStat.value >= 0 ? "" : "neg")}>{money(headStat.value, cur)}</div>
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button className="fd-toolbtn" onClick={openStory}>{t.btnRecap}</button>
               <button className={"fd-toolbtn" + (editing ? " gold" : "")} onClick={() => setEditing((v) => !v)}>{editing ? t.btnDone : t.btnEdit}</button>
