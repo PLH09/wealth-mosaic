@@ -279,16 +279,6 @@ function MoneyList({ items, onChange, categories, valueKey = "value", accent, cu
   );
 }
 
-/* Voice-assistant keyword maps: detect delete / modify intent per locale.
-   Anything that isn't a delete or modify is treated as an "add". */
-const VA_KW = {
-  "zh-TW": { del: /刪除|刪掉|移除|拿掉|去掉/, mod: /改成|改為|改到|修改|更新|變成|調整|設成/ },
-  "zh-CN": { del: /删除|删掉|移除|拿掉|去掉/, mod: /改成|改为|改到|修改|更新|变成|调整|设成/ },
-  en: { del: /\b(delete|remove)\b/i, mod: /\b(change|update|set|modify|edit)\b/i },
-  ja: { del: /削除|消す|消し|削って/, mod: /変更|に変|修正|に直/ },
-  ko: { del: /삭제|제거|지워|빼/, mod: /변경|수정|으로 바꿔|로 바꿔/ },
-};
-
 /* ----------------------------- main ----------------------------- */
 export default function FinanceDashboard({ locale = "en" }) {
   const t = STRINGS[locale] || STRINGS.en;
@@ -339,17 +329,6 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [editing, setEditing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = React.useRef(null);
-
-  // voice assistant (bottom-right) — add / modify / delete existing items
-  const [vaOpen, setVaOpen] = useState(false);
-  const [vaListening, setVaListening] = useState(false);
-  const [vaHeard, setVaHeard] = useState("");
-  const [vaText, setVaText] = useState("");
-  const [vaErr, setVaErr] = useState("");
-  const [vaTarget, setVaTarget] = useState("me");
-  const [vaPreview, setVaPreview] = useState(null);
-  const [vaLog, setVaLog] = useState([]);
-  const vaRecogRef = React.useRef(null);
 
   // close the "More" menu on outside click / Esc
   useEffect(() => {
@@ -654,143 +633,6 @@ export default function FinanceDashboard({ locale = "en" }) {
   const iSaved = iM1 && iM2 ? iM1 - iM2 : 0;
   const insightVals = { stalled: calc.net <= 0, net: calc.net, rate: calc.rate, milestoneLabel: milestone.label, m1: iM1, saved: iSaved };
 
-  // ---- voice assistant handlers (add / modify / delete existing items) ----
-  const VA_TARGETS = [
-    { key: "me", label: t.variableSpending },
-    { key: "mi", label: t.extraIncome },
-    { key: "re", label: t.recurringExpenses },
-    { key: "ri", label: t.recurringIncome },
-    { key: "as", label: t.secAssets },
-    { key: "li", label: t.secLiabilities },
-    { key: "pf", label: t.secHoldings },
-  ];
-  const vaBucketLabel = (k) => (VA_TARGETS.find((b) => b.key === k) || {}).label || k;
-  const vaBucketList = (k) => {
-    if (k === "ri") return data.recurring.income;
-    if (k === "re") return data.recurring.expenses;
-    if (k === "mi") return calc.m.income;
-    if (k === "me") return calc.m.expenses;
-    if (k === "as") return data.assets;
-    if (k === "li") return data.liabilities;
-    if (k === "pf") return data.portfolio;
-    return [];
-  };
-  const vaExtra = (k) => {
-    if (k === "re" || k === "me") return { category: EXPENSE_CATS[6] };
-    if (k === "pf") return { category: INVEST_CATS[6] };
-    if (k === "as") return { type: ASSET_TYPES[4] };
-    return {};
-  };
-  const vaApplyBucket = (k, transform) => {
-    update((prev) => {
-      const next = { ...prev };
-      if (k === "ri") next.recurring = { ...prev.recurring, income: transform(prev.recurring.income) };
-      else if (k === "re") next.recurring = { ...prev.recurring, expenses: transform(prev.recurring.expenses) };
-      else if (k === "mi") { const m = prev.months[month] || { income: [], expenses: [] }; next.months = { ...prev.months, [month]: { ...m, income: transform(m.income) } }; }
-      else if (k === "me") { const m = prev.months[month] || { income: [], expenses: [] }; next.months = { ...prev.months, [month]: { ...m, expenses: transform(m.expenses) } }; }
-      else if (k === "as") next.assets = transform(prev.assets);
-      else if (k === "li") next.liabilities = transform(prev.liabilities);
-      else if (k === "pf") next.portfolio = transform(prev.portfolio);
-      if (k === "as" || k === "li") next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: sum(next.assets) - sum(next.liabilities) };
-      return next;
-    });
-  };
-  const vaMatch = (q) => {
-    const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
-    const nq = norm(q);
-    if (!nq) return null;
-    for (const b of VA_TARGETS) {
-      for (const it of vaBucketList(b.key)) if (norm(it.label) === nq) return { bucketKey: b.key, item: it };
-    }
-    for (const b of VA_TARGETS) {
-      for (const it of vaBucketList(b.key)) {
-        const nl = norm(it.label);
-        if (nl && (nl.includes(nq) || nq.includes(nl))) return { bucketKey: b.key, item: it };
-      }
-    }
-    return null;
-  };
-  const parseVoiceCmd = (text) => {
-    const raw = String(text || "").trim();
-    if (!raw) return { error: t.vaNeedAmount };
-    const kw = VA_KW[locale] || VA_KW.en;
-    const isDel = kw.del.test(raw);
-    const isMod = !isDel && kw.mod.test(raw);
-    const body = raw.replace(kw.del, " ").replace(kw.mod, " ").replace(/\s+/g, " ").trim();
-    const P = voice && voice.parser;
-    let label = "", value = NaN;
-    if (P && P.splitLabelAmount) { const r = P.splitLabelAmount(body); label = (r.label || "").trim(); value = r.amount; }
-    if (isNaN(value)) { const m = body.match(/-?\d[\d,]*\.?\d*/); if (m) value = Number(m[0].replace(/,/g, "")); }
-    if (!label) label = body.replace(/-?\d[\d,]*\.?\d*/g, "").replace(/\b(to|為|为|到)\b/gi, " ").trim();
-    if (isDel) {
-      const hit = vaMatch(label || body);
-      if (!hit) return { error: t.vaNotFound(label || body) };
-      return { kind: "delete", bucketKey: hit.bucketKey, itemId: hit.item.id, label: hit.item.label };
-    }
-    if (isMod) {
-      if (isNaN(value)) return { error: t.vaNeedAmount };
-      const hit = vaMatch(label || body);
-      if (!hit) return { error: t.vaNotFound(label || body) };
-      return { kind: "modify", bucketKey: hit.bucketKey, itemId: hit.item.id, label: hit.item.label, value: Math.round(value) };
-    }
-    if (isNaN(value)) return { error: t.vaNeedAmount };
-    return { kind: "add", bucketKey: vaTarget, label: label || t.fallbackItem, value: Math.round(value) };
-  };
-  const vaApply = (action) => {
-    if (!action || action.error) { if (action) setVaErr(action.error); return; }
-    const loc = vaBucketLabel(action.bucketKey);
-    if (action.kind === "add") {
-      const item = { id: uid(), label: action.label, value: action.value, ...vaExtra(action.bucketKey) };
-      vaApplyBucket(action.bucketKey, (list) => [...list, item]);
-      setVaLog((p) => [`${t.vaAdd}: ${action.label} ${money(action.value, cur)} → ${loc}`, ...p].slice(0, 8));
-    } else if (action.kind === "modify") {
-      vaApplyBucket(action.bucketKey, (list) => list.map((it) => (it.id === action.itemId ? { ...it, value: action.value } : it)));
-      setVaLog((p) => [`${t.vaModify}: ${action.label} → ${money(action.value, cur)}`, ...p].slice(0, 8));
-    } else if (action.kind === "delete") {
-      vaApplyBucket(action.bucketKey, (list) => list.filter((it) => it.id !== action.itemId));
-      setVaLog((p) => [`${t.vaDelete}: ${action.label}`, ...p].slice(0, 8));
-    }
-    setVaPreview(null); setVaText(""); setVaHeard(""); setVaErr("");
-  };
-  const vaSubmit = (text) => {
-    setVaErr("");
-    const action = parseVoiceCmd(text);
-    if (action.error) { setVaPreview(null); setVaErr(action.error); return; }
-    setVaPreview(action);
-  };
-  const vaStop = () => { try { vaRecogRef.current && vaRecogRef.current.stop(); } catch { /* noop */ } setVaListening(false); };
-  const vaStartVoice = () => {
-    if (!voice) { setVaErr(t.vaTypeNote); return; }
-    setVaErr("");
-    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SR) { setVaErr(t.speechNoSupport); return; }
-    if (vaListening) { vaStop(); return; }
-    let rec;
-    try { rec = new SR(); } catch { setVaErr(t.speechCantStart); return; }
-    rec.lang = voice.lang;
-    rec.interimResults = true;
-    rec.continuous = false;
-    rec.maxAlternatives = 1;
-    vaRecogRef.current = rec;
-    setVaHeard("");
-    rec.onresult = (e) => {
-      let txt = "";
-      for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
-      setVaHeard(txt); setVaText(txt);
-      if (e.results[e.results.length - 1].isFinal) vaSubmit(txt);
-    };
-    rec.onerror = (e) => {
-      setVaListening(false);
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") setVaErr(t.speechBlocked);
-      else if (e.error === "no-speech") setVaErr(t.speechNoHear);
-      else setVaErr(t.speechStopped);
-    };
-    rec.onend = () => setVaListening(false);
-    try { rec.start(); setVaListening(true); } catch { setVaErr(t.speechCantStart); }
-  };
-  const openVA = () => { setVaOpen(true); setVaErr(""); setVaHeard(""); setVaText(""); setVaPreview(null); };
-  const closeVA = () => { vaStop(); setVaOpen(false); setVaPreview(null); };
-
   const TABS = [
     { key: "overview", label: t.tabs.overview },
     { key: "cashflow", label: t.tabs.cashflow },
@@ -814,7 +656,6 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div className="fd-net-label">{t.netLabel}</div>
             <div className={"fd-net fd-tabnum " + (calc.netWorth >= 0 ? "" : "neg")}>{money(calc.netWorth, cur)}</div>
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <button className="fd-toolbtn gold" onClick={openQA}>{t.btnGuided}</button>
               <button className="fd-toolbtn" onClick={openStory}>{t.btnRecap}</button>
               <button className={"fd-toolbtn" + (editing ? " gold" : "")} onClick={() => setEditing((v) => !v)}>{editing ? t.btnDone : t.btnEdit}</button>
               <div className="more-wrap" ref={moreRef}>
@@ -1045,9 +886,9 @@ export default function FinanceDashboard({ locale = "en" }) {
         )}
       </div>
 
-      {/* floating voice-assistant button (add / modify / delete) */}
-      {!chatOpen && !vaOpen && (
-        <button className="fab" onClick={openVA} aria-label={t.vaTitle}>🎤</button>
+      {/* floating guided-fill button */}
+      {!chatOpen && (
+        <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
       )}
 
       {/* guided Q&A modal */}
@@ -1170,78 +1011,6 @@ export default function FinanceDashboard({ locale = "en" }) {
                 <button className="addbtn" onClick={closeStory}>{t.close}</button>
               </div>
               <div className="qa-hint" style={{ marginTop: 12 }}>{t.recapHint}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* voice-assistant modal — add / modify / delete by voice or text */}
-      {vaOpen && (
-        <div className="modal-bg" onClick={closeVA}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-h">
-              <div>
-                <div className="fd-eyebrow">{t.vaEyebrow}</div>
-                <div className="sec-t" style={{ fontSize: 17 }}>{t.vaTitle}</div>
-              </div>
-              <button className="del" style={{ fontSize: 20 }} onClick={closeVA}>✕</button>
-            </div>
-            <div className="qa-body">
-              <div className="qa-hint">{t.vaHint}</div>
-
-              <div className="qa-inputs" style={{ marginTop: 12 }}>
-                <div className="qa-numwrap">
-                  <label className="kpi-l" style={{ display: "block", marginBottom: 4 }}>{t.vaTargetLabel}</label>
-                  <select className="inp" value={vaTarget} onChange={(e) => setVaTarget(e.target.value)}>
-                    {VA_TARGETS.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="addrow" style={{ marginTop: 12 }}>
-                <input className="inp" placeholder={t.vaPlaceholder} value={vaText}
-                  onChange={(e) => setVaText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && vaSubmit(vaText)} />
-                <button className="addbtn" onClick={() => vaSubmit(vaText)}>{t.vaParse}</button>
-              </div>
-
-              <div className="qa-inputs" style={{ marginTop: 10 }}>
-                {voice ? (
-                  <button className={"mic " + (vaListening ? "on" : "")} onClick={vaStartVoice}>
-                    <span className="mic-dot" />
-                    {vaListening ? t.listening : t.micSay}
-                  </button>
-                ) : (
-                  <div className="qa-hint">{t.vaTypeNote}</div>
-                )}
-              </div>
-
-              {vaHeard && <div className="qa-heard">{t.heard(vaHeard)}</div>}
-              {vaErr && <div className="qa-err">{vaErr}</div>}
-
-              {vaPreview && (
-                <div className="insight" style={{ marginTop: 14 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                    {vaPreview.kind === "add" ? t.vaAdd : vaPreview.kind === "modify" ? t.vaModify : t.vaDelete}
-                    {" · "}{vaBucketLabel(vaPreview.bucketKey)}
-                  </div>
-                  <div>
-                    {vaPreview.label}
-                    {vaPreview.kind !== "delete" && <> {" "}<b>{money(vaPreview.value, cur)}</b></>}
-                  </div>
-                  <div className="qa-actions" style={{ marginTop: 14 }}>
-                    <button className="fd-toolbtn" onClick={() => setVaPreview(null)}>{t.vaCancel}</button>
-                    <div style={{ flex: 1 }} />
-                    <button className="addbtn" onClick={() => vaApply(vaPreview)}>{t.vaConfirm}</button>
-                  </div>
-                </div>
-              )}
-
-              <div className="changed" style={{ marginTop: 16 }}>
-                {vaLog.length === 0
-                  ? <span className="qa-hint">{t.vaEmptyLog}</span>
-                  : vaLog.map((c, j) => <span key={j} className="chip">✓ {c}</span>)}
-              </div>
             </div>
           </div>
         </div>
