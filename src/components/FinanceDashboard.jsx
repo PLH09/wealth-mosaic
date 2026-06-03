@@ -1052,7 +1052,7 @@ export default function FinanceDashboard({ locale = "en" }) {
         {tab === "invest" && (() => {
           const allocCats = new Set(data.portfolio.map((p) => p.category || INVEST_CATS[6])).size;
           const showAlloc = allocCats >= 2;
-          const share = calc.assets > 0 ? Math.round((calc.invest / calc.assets) * 100) : 0;
+          const share = calc.assets > 0 ? Math.min(100, Math.round((calc.invest / calc.assets) * 100)) : 0;
           const top = data.portfolio.reduce((a, b) => ((Number(b.value) || 0) > (Number(a?.value) || 0) ? b : a), null);
           const topPct = top && calc.invest > 0 ? Math.round(((Number(top.value) || 0) / calc.invest) * 100) : 0;
           return (
