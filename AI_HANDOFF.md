@@ -114,6 +114,14 @@ in each locale's `t.tour` ({ menu, next, back, skip, done, stepOf, steps[] }).
   it once trapped the ⋯更多 dropdown; `.fd-head` has `position:relative; z-index:30` to fix it.
 - The bottom-right FAB is hidden while a modal is open.
 - Run `npm run build` after edits to type-check the JSX compiles.
+- **Header headline number is tab-contextual** (`headStat` in `FinanceDashboard.jsx`, just
+  before the main `return`): net worth on Overview/Retirement, `calc.net` (monthly surplus)
+  on Cash Flow, `calc.invest` (total invested) on Investments. Uses `.fd-net-label` /
+  `.fd-net` (CSS uppercases the label).
+- **Guided fill is append-only** (`applyUpdates` spreads `[...prev, ...new]`, never deletes;
+  blank inputs are skipped). The modal shows `t.quickAppendNote` to make this explicit.
+- **Investments "Share of assets"** = `calc.invest / calc.assets` (clamped to 100%). Holdings
+  and balance-sheet assets are meant to be kept in sync (`t.investNote`), NOT separate ledgers.
 
 ---
 
@@ -121,6 +129,11 @@ in each locale's `t.tour` ({ menu, next, back, skip, done, stepOf, steps[] }).
 
 - Repo: private GitHub `PLH09/finance-dashboard` (branch `main`).
 - Live: https://finance-dashboard-phi-gules.vercel.app
-- Last shared commit baseline: `ed3b663`. Several UI changes after it (language selector
+- Last shared commit baseline: `ed3b663`. Many UI changes after it (language selector
   restyle, removed budget block, cash-flow redesign, savings meter, tab consolidation,
-  Overview visual redesign) may be **uncommitted/unpushed** in this snapshot — check `git log`.
+  Overview visual redesign) are now committed & pushed — always `git log` for the latest.
+- Recent UX passes (all committed/pushed): guided tour + 11 clarity fixes (`7323485`),
+  cross-tab consistency in retirement sample & investments note (`1c0823c`), consistent
+  empty-state CTAs + guided-fill append note + Export discoverability (`5ac7853`),
+  tab-contextual header number (`7452ebd`). A second first-time-user re-check (incl. zh-TW)
+  found the numbers internally consistent and the i18n changes rendering cleanly in all locales.
