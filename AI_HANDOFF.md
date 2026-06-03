@@ -32,7 +32,7 @@ src/main.jsx                     # ReactDOM root -> <App/>
 src/App.jsx                      # language picker (bottom-left), persists `finance:lang`,
                                  #   renders <FinanceDashboard locale={lang} key={lang} />
 src/i18n.jsx        (~1420 ln)   # LOCALES + per-locale STRINGS (en, zh-TW, zh-CN, ja, ko),
-                                 #   sample data, guided-fill QUESTIONS, fonts
+                                 #   guided-fill QUESTIONS, fonts
 src/components/FinanceDashboard.jsx (~1360 ln)  # the entire app: CSS-in-JS, calc, all tabs,
                                  #   sub-components (Kpi, MoneyList, NetWorthChart, AllocChart,
                                  #   CategoryDonut, GoalAdder, RetirementView)
@@ -40,7 +40,7 @@ public/                          # static assets (data.js demo, video/)
 ```
 
 Most edits happen in **`FinanceDashboard.jsx`** (UI/logic) and **`i18n.jsx`** (all
-user-facing text + sample data). When you add a UI string, add it to **all 5 locales**.
+user-facing text). When you add a UI string, add it to **all 5 locales**.
 
 ---
 
@@ -127,7 +127,7 @@ in each locale's `t.tour` ({ menu, next, back, skip, done, stepOf, steps[] }).
 
 ## 7. Live / repo
 
-- Repo: private GitHub `PLH09/finance-dashboard` (branch `main`).
+- Repo: **public** GitHub `PLH09/wealth-mosaic` (branch `main`).
 - Live: https://finance-dashboard-phi-gules.vercel.app
 - Last shared commit baseline: `ed3b663`. Many UI changes after it (language selector
   restyle, removed budget block, cash-flow redesign, savings meter, tab consolidation,
@@ -137,3 +137,6 @@ in each locale's `t.tour` ({ menu, next, back, skip, done, stepOf, steps[] }).
   empty-state CTAs + guided-fill append note + Export discoverability (`5ac7853`),
   tab-contextual header number (`7452ebd`). A second first-time-user re-check (incl. zh-TW)
   found the numbers internally consistent and the i18n changes rendering cleanly in all locales.
+- **Sample data feature fully removed** (`906918e`): the "Load sample" ⋯ More action, the
+  per-locale `sample()` data generator, and every mention of sample data (tour copy,
+  empty-state insights, story blank-page text) are gone. Onboarding is now guided-fill only.
