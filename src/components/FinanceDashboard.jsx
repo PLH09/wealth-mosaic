@@ -91,11 +91,11 @@ const buildCSS = (f) => `
   radial-gradient(700px 500px at -10% 10%,rgba(60,138,95,.07),transparent 55%),
   linear-gradient(160deg,#fdf8ee,#f1e8d7 52%,#e9dec9);
   -webkit-font-smoothing:antialiased;}
-.fd-wrap{max-width:1040px;margin:0 auto;padding:26px 18px 80px;}
+.fd-wrap{max-width:1040px;margin:0 auto;padding:26px 18px 104px;}
 .fd-tabnum{font-variant-numeric:tabular-nums;}
 .fd-serif{font-family:var(--serif);}
 .fd-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;
-  animation:rise .6s ease both;}
+  position:relative;z-index:30;animation:rise .6s ease both;}
 .fd-eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500;}
 .fd-privacy{font-size:12px;color:var(--muted);margin-top:8px;max-width:380px;line-height:1.4;}
 .story-text{font-size:15px;line-height:1.85;color:var(--text);background:rgba(194,151,47,.06);border:1px solid rgba(194,151,47,.18);border-radius:14px;padding:16px 18px;letter-spacing:.01em;}
@@ -207,6 +207,21 @@ const buildCSS = (f) => `
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,92,54,.5)}70%{box-shadow:0 0 0 8px rgba(196,92,54,0)}100%{box-shadow:0 0 0 0 rgba(196,92,54,0)}}
 .qa-heard{font-size:13px;color:var(--gold2);margin-top:12px;font-style:italic;}
 .qa-err{font-size:13px;color:var(--red);margin-top:10px;line-height:1.5;}
+.more-wrap{position:relative;display:inline-block;}
+.more-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:150px;z-index:55;
+  display:flex;flex-direction:column;gap:2px;padding:6px;
+  background:var(--surface);border:1px solid var(--line2);border-radius:13px;
+  box-shadow:0 18px 40px -16px rgba(140,110,40,.5);animation:rise .18s ease both;}
+.more-item{display:block;width:100%;text-align:left;background:transparent;border:none;
+  color:var(--text);font-family:var(--sans);font-size:13px;font-weight:500;
+  padding:9px 11px;border-radius:9px;cursor:pointer;transition:.12s;}
+.more-item:hover{background:rgba(194,151,47,.12);color:var(--gold2);}
+.more-item.danger{color:var(--red);}
+.more-item.danger:hover{background:rgba(196,92,54,.12);color:var(--red);}
+.tab-intro{font-size:13.5px;color:var(--muted);line-height:1.55;margin:-8px 0 18px;max-width:640px;}
+.edit-hint{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gold2);
+  background:rgba(194,151,47,.1);border:1px solid rgba(194,151,47,.28);
+  border-radius:11px;padding:9px 14px;margin-bottom:16px;animation:rise .25s ease both;}
 `;
 
 /* ----------------------------- small components ----------------------------- */
@@ -220,7 +235,7 @@ function Kpi({ label, value, sub, tone }) {
   );
 }
 
-function MoneyList({ items, onChange, categories, valueKey = "value", accent, cur, t }) {
+function MoneyList({ items, onChange, categories, valueKey = "value", accent, cur, t, editing }) {
   const [lbl, setLbl] = useState("");
   const [val, setVal] = useState("");
   const [cat, setCat] = useState(categories ? categories[0] : null);
@@ -241,24 +256,38 @@ function MoneyList({ items, onChange, categories, valueKey = "value", accent, cu
             {it.category && <span className="cat">{it.category}</span>}
           </div>
           <div className="amt" style={accent ? { color: accent } : null}>{money(it[valueKey], cur)}</div>
-          <button className="del" onClick={() => onChange(items.filter((x) => x.id !== it.id))}>✕</button>
+          {editing
+            ? <button className="del" onClick={() => onChange(items.filter((x) => x.id !== it.id))}>✕</button>
+            : <span />}
         </div>
       ))}
-      <div className="addrow">
-        <input className="inp lbl-in" placeholder={t.list.name} value={lbl}
-          onChange={(e) => setLbl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
-        {categories && (
-          <select className="sel" value={cat} onChange={(e) => setCat(e.target.value)}>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
-        <input className="inp num-in" type="number" placeholder={t.list.amount} value={val}
-          onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
-        <button className="addbtn" onClick={add}>{t.list.add}</button>
-      </div>
+      {editing && (
+        <div className="addrow">
+          <input className="inp lbl-in" placeholder={t.list.name} value={lbl}
+            onChange={(e) => setLbl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
+          {categories && (
+            <select className="sel" value={cat} onChange={(e) => setCat(e.target.value)}>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <input className="inp num-in" type="number" placeholder={t.list.amount} value={val}
+            onChange={(e) => setVal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
+          <button className="addbtn" onClick={add}>{t.list.add}</button>
+        </div>
+      )}
     </div>
   );
 }
+
+/* Voice-assistant keyword maps: detect delete / modify intent per locale.
+   Anything that isn't a delete or modify is treated as an "add". */
+const VA_KW = {
+  "zh-TW": { del: /刪除|刪掉|移除|拿掉|去掉/, mod: /改成|改為|改到|修改|更新|變成|調整|設成/ },
+  "zh-CN": { del: /删除|删掉|移除|拿掉|去掉/, mod: /改成|改为|改到|修改|更新|变成|调整|设成/ },
+  en: { del: /\b(delete|remove)\b/i, mod: /\b(change|update|set|modify|edit)\b/i },
+  ja: { del: /削除|消す|消し|削って/, mod: /変更|に変|修正|に直/ },
+  ko: { del: /삭제|제거|지워|빼/, mod: /변경|수정|으로 바꿔|로 바꿔/ },
+};
 
 /* ----------------------------- main ----------------------------- */
 export default function FinanceDashboard({ locale = "en" }) {
@@ -307,6 +336,33 @@ export default function FinanceDashboard({ locale = "en" }) {
   }, []);
   const [storyOpen, setStoryOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = React.useRef(null);
+
+  // voice assistant (bottom-right) — add / modify / delete existing items
+  const [vaOpen, setVaOpen] = useState(false);
+  const [vaListening, setVaListening] = useState(false);
+  const [vaHeard, setVaHeard] = useState("");
+  const [vaText, setVaText] = useState("");
+  const [vaErr, setVaErr] = useState("");
+  const [vaTarget, setVaTarget] = useState("me");
+  const [vaPreview, setVaPreview] = useState(null);
+  const [vaLog, setVaLog] = useState([]);
+  const vaRecogRef = React.useRef(null);
+
+  // close the "More" menu on outside click / Esc
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onDown = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setMoreOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
 
   useEffect(() => {
     (async () => {
@@ -598,6 +654,143 @@ export default function FinanceDashboard({ locale = "en" }) {
   const iSaved = iM1 && iM2 ? iM1 - iM2 : 0;
   const insightVals = { stalled: calc.net <= 0, net: calc.net, rate: calc.rate, milestoneLabel: milestone.label, m1: iM1, saved: iSaved };
 
+  // ---- voice assistant handlers (add / modify / delete existing items) ----
+  const VA_TARGETS = [
+    { key: "me", label: t.variableSpending },
+    { key: "mi", label: t.extraIncome },
+    { key: "re", label: t.recurringExpenses },
+    { key: "ri", label: t.recurringIncome },
+    { key: "as", label: t.secAssets },
+    { key: "li", label: t.secLiabilities },
+    { key: "pf", label: t.secHoldings },
+  ];
+  const vaBucketLabel = (k) => (VA_TARGETS.find((b) => b.key === k) || {}).label || k;
+  const vaBucketList = (k) => {
+    if (k === "ri") return data.recurring.income;
+    if (k === "re") return data.recurring.expenses;
+    if (k === "mi") return calc.m.income;
+    if (k === "me") return calc.m.expenses;
+    if (k === "as") return data.assets;
+    if (k === "li") return data.liabilities;
+    if (k === "pf") return data.portfolio;
+    return [];
+  };
+  const vaExtra = (k) => {
+    if (k === "re" || k === "me") return { category: EXPENSE_CATS[6] };
+    if (k === "pf") return { category: INVEST_CATS[6] };
+    if (k === "as") return { type: ASSET_TYPES[4] };
+    return {};
+  };
+  const vaApplyBucket = (k, transform) => {
+    update((prev) => {
+      const next = { ...prev };
+      if (k === "ri") next.recurring = { ...prev.recurring, income: transform(prev.recurring.income) };
+      else if (k === "re") next.recurring = { ...prev.recurring, expenses: transform(prev.recurring.expenses) };
+      else if (k === "mi") { const m = prev.months[month] || { income: [], expenses: [] }; next.months = { ...prev.months, [month]: { ...m, income: transform(m.income) } }; }
+      else if (k === "me") { const m = prev.months[month] || { income: [], expenses: [] }; next.months = { ...prev.months, [month]: { ...m, expenses: transform(m.expenses) } }; }
+      else if (k === "as") next.assets = transform(prev.assets);
+      else if (k === "li") next.liabilities = transform(prev.liabilities);
+      else if (k === "pf") next.portfolio = transform(prev.portfolio);
+      if (k === "as" || k === "li") next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: sum(next.assets) - sum(next.liabilities) };
+      return next;
+    });
+  };
+  const vaMatch = (q) => {
+    const norm = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
+    const nq = norm(q);
+    if (!nq) return null;
+    for (const b of VA_TARGETS) {
+      for (const it of vaBucketList(b.key)) if (norm(it.label) === nq) return { bucketKey: b.key, item: it };
+    }
+    for (const b of VA_TARGETS) {
+      for (const it of vaBucketList(b.key)) {
+        const nl = norm(it.label);
+        if (nl && (nl.includes(nq) || nq.includes(nl))) return { bucketKey: b.key, item: it };
+      }
+    }
+    return null;
+  };
+  const parseVoiceCmd = (text) => {
+    const raw = String(text || "").trim();
+    if (!raw) return { error: t.vaNeedAmount };
+    const kw = VA_KW[locale] || VA_KW.en;
+    const isDel = kw.del.test(raw);
+    const isMod = !isDel && kw.mod.test(raw);
+    const body = raw.replace(kw.del, " ").replace(kw.mod, " ").replace(/\s+/g, " ").trim();
+    const P = voice && voice.parser;
+    let label = "", value = NaN;
+    if (P && P.splitLabelAmount) { const r = P.splitLabelAmount(body); label = (r.label || "").trim(); value = r.amount; }
+    if (isNaN(value)) { const m = body.match(/-?\d[\d,]*\.?\d*/); if (m) value = Number(m[0].replace(/,/g, "")); }
+    if (!label) label = body.replace(/-?\d[\d,]*\.?\d*/g, "").replace(/\b(to|為|为|到)\b/gi, " ").trim();
+    if (isDel) {
+      const hit = vaMatch(label || body);
+      if (!hit) return { error: t.vaNotFound(label || body) };
+      return { kind: "delete", bucketKey: hit.bucketKey, itemId: hit.item.id, label: hit.item.label };
+    }
+    if (isMod) {
+      if (isNaN(value)) return { error: t.vaNeedAmount };
+      const hit = vaMatch(label || body);
+      if (!hit) return { error: t.vaNotFound(label || body) };
+      return { kind: "modify", bucketKey: hit.bucketKey, itemId: hit.item.id, label: hit.item.label, value: Math.round(value) };
+    }
+    if (isNaN(value)) return { error: t.vaNeedAmount };
+    return { kind: "add", bucketKey: vaTarget, label: label || t.fallbackItem, value: Math.round(value) };
+  };
+  const vaApply = (action) => {
+    if (!action || action.error) { if (action) setVaErr(action.error); return; }
+    const loc = vaBucketLabel(action.bucketKey);
+    if (action.kind === "add") {
+      const item = { id: uid(), label: action.label, value: action.value, ...vaExtra(action.bucketKey) };
+      vaApplyBucket(action.bucketKey, (list) => [...list, item]);
+      setVaLog((p) => [`${t.vaAdd}: ${action.label} ${money(action.value, cur)} → ${loc}`, ...p].slice(0, 8));
+    } else if (action.kind === "modify") {
+      vaApplyBucket(action.bucketKey, (list) => list.map((it) => (it.id === action.itemId ? { ...it, value: action.value } : it)));
+      setVaLog((p) => [`${t.vaModify}: ${action.label} → ${money(action.value, cur)}`, ...p].slice(0, 8));
+    } else if (action.kind === "delete") {
+      vaApplyBucket(action.bucketKey, (list) => list.filter((it) => it.id !== action.itemId));
+      setVaLog((p) => [`${t.vaDelete}: ${action.label}`, ...p].slice(0, 8));
+    }
+    setVaPreview(null); setVaText(""); setVaHeard(""); setVaErr("");
+  };
+  const vaSubmit = (text) => {
+    setVaErr("");
+    const action = parseVoiceCmd(text);
+    if (action.error) { setVaPreview(null); setVaErr(action.error); return; }
+    setVaPreview(action);
+  };
+  const vaStop = () => { try { vaRecogRef.current && vaRecogRef.current.stop(); } catch { /* noop */ } setVaListening(false); };
+  const vaStartVoice = () => {
+    if (!voice) { setVaErr(t.vaTypeNote); return; }
+    setVaErr("");
+    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SR) { setVaErr(t.speechNoSupport); return; }
+    if (vaListening) { vaStop(); return; }
+    let rec;
+    try { rec = new SR(); } catch { setVaErr(t.speechCantStart); return; }
+    rec.lang = voice.lang;
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    vaRecogRef.current = rec;
+    setVaHeard("");
+    rec.onresult = (e) => {
+      let txt = "";
+      for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+      setVaHeard(txt); setVaText(txt);
+      if (e.results[e.results.length - 1].isFinal) vaSubmit(txt);
+    };
+    rec.onerror = (e) => {
+      setVaListening(false);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") setVaErr(t.speechBlocked);
+      else if (e.error === "no-speech") setVaErr(t.speechNoHear);
+      else setVaErr(t.speechStopped);
+    };
+    rec.onend = () => setVaListening(false);
+    try { rec.start(); setVaListening(true); } catch { setVaErr(t.speechCantStart); }
+  };
+  const openVA = () => { setVaOpen(true); setVaErr(""); setVaHeard(""); setVaText(""); setVaPreview(null); };
+  const closeVA = () => { vaStop(); setVaOpen(false); setVaPreview(null); };
+
   const TABS = [
     { key: "overview", label: t.tabs.overview },
     { key: "cashflow", label: t.tabs.cashflow },
@@ -623,10 +816,18 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
               <button className="fd-toolbtn gold" onClick={openQA}>{t.btnGuided}</button>
               <button className="fd-toolbtn" onClick={openStory}>{t.btnRecap}</button>
-              <button className="fd-toolbtn" onClick={() => update({ ...t.sample() })}>{t.btnSample}</button>
-              <button className="fd-toolbtn" onClick={exportData}>{t.btnExport}</button>
-              <button className="fd-toolbtn" onClick={() => fileRef.current && fileRef.current.click()}>{t.btnImport}</button>
-              <button className="fd-toolbtn" onClick={() => { if (confirm(t.clearConfirm)) update({ ...DEFAULT }); }}>{t.btnClear}</button>
+              <button className={"fd-toolbtn" + (editing ? " gold" : "")} onClick={() => setEditing((v) => !v)}>{editing ? t.btnDone : t.btnEdit}</button>
+              <div className="more-wrap" ref={moreRef}>
+                <button className="fd-toolbtn" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>{t.btnMore}</button>
+                {moreOpen && (
+                  <div className="more-menu" role="menu">
+                    <button className="more-item" role="menuitem" onClick={() => { update({ ...t.sample() }); setMoreOpen(false); }}>{t.btnSample}</button>
+                    <button className="more-item" role="menuitem" onClick={() => { exportData(); setMoreOpen(false); }}>{t.btnExport}</button>
+                    <button className="more-item" role="menuitem" onClick={() => { fileRef.current && fileRef.current.click(); setMoreOpen(false); }}>{t.btnImport}</button>
+                    <button className="more-item danger" role="menuitem" onClick={() => { setMoreOpen(false); if (confirm(t.clearConfirm)) update({ ...DEFAULT }); }}>{t.btnClear}</button>
+                  </div>
+                )}
+              </div>
               <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importData} />
             </div>
           </div>
@@ -639,11 +840,16 @@ export default function FinanceDashboard({ locale = "en" }) {
           ))}
         </div>
 
+        {/* plain-language intro for the current tab */}
+        {t.tabIntro && t.tabIntro[tab] && <div className="tab-intro">{t.tabIntro[tab]}</div>}
+
+        {/* edit-mode banner */}
+        {editing && <div className="edit-hint">{t.editingHint}</div>}
+
         {/* ---------------- Overview ---------------- */}
         {tab === "overview" && (
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
-            <div className="fd-grid cols-4">
-              <Kpi label={t.kNetWorth} value={money(calc.netWorth, cur)} sub={t.netWorthSub(t.short(calc.assets), t.short(calc.liab))} />
+            <div className="fd-grid cols-3">
               <Kpi label={t.kSavingsRate} value={calc.rate.toFixed(0) + "%"} tone={calc.rate >= 20 ? "pos" : calc.rate < 0 ? "neg" : ""} sub={calc.rate >= 30 ? t.srExcellent : calc.rate >= 20 ? t.srHealthy : calc.rate >= 0 ? t.srImprove : t.srOver} />
               <Kpi label={t.kMonthlySurplus} value={money(calc.net, cur)} tone={calc.net >= 0 ? "pos" : "neg"} sub={t.surplusSub(t.short(calc.income), t.short(calc.expense))} />
               <Kpi label={t.kInvestments} value={money(calc.invest, cur)} sub={t.holdingsCount(data.portfolio.length)} />
@@ -651,27 +857,21 @@ export default function FinanceDashboard({ locale = "en" }) {
 
             <div className="insight">{t.insight(insightVals, H)}</div>
 
-            <div className="fd-grid cols-2">
-              <div className="card glow">
-                <div className="sec-h"><div className="sec-t">{t.secNetWorthTrend}</div><div className="sec-sub">{t.secAutoRecorded}</div></div>
-                <NetWorthChart hist={calc.histArr} cur={cur} t={t} />
-              </div>
-              <div className="card">
-                <div className="sec-h"><div className="sec-t">{t.secGoalProgress}</div></div>
-                {data.goals.length === 0 && <div className="empty">{t.noGoals}</div>}
-                {data.goals.map((g) => {
-                  const p = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
-                  return (
-                    <div key={g.id} style={{ marginBottom: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                        <span>{g.label}</span><span className="fd-tabnum" style={{ color: "var(--gold2)" }}>{p.toFixed(0)}%</span>
-                      </div>
-                      <div className="bar"><i style={{ width: p + "%" }} /></div>
-                      <div className="goal-meta"><span>{money(g.current, cur)}</span><span>{t.goalTarget(money(g.target, cur))}</span></div>
+            <div className="card">
+              <div className="sec-h"><div className="sec-t">{t.secGoalProgress}</div></div>
+              {data.goals.length === 0 && <div className="empty">{t.noGoals}</div>}
+              {data.goals.map((g) => {
+                const p = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
+                return (
+                  <div key={g.id} style={{ marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+                      <span>{g.label}</span><span className="fd-tabnum" style={{ color: "var(--gold2)" }}>{p.toFixed(0)}%</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="bar"><i style={{ width: p + "%" }} /></div>
+                    <div className="goal-meta"><span>{money(g.current, cur)}</span><span>{t.goalTarget(money(g.target, cur))}</span></div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -726,12 +926,12 @@ export default function FinanceDashboard({ locale = "en" }) {
               <div className="fd-grid cols-2">
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.recurringIncome}</div>
-                  <MoneyList items={data.recurring.income} accent="var(--green)" cur={cur} t={t}
+                  <MoneyList items={data.recurring.income} accent="var(--green)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ recurring: { ...data.recurring, income: v } })} />
                 </div>
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.recurringExpenses}</div>
-                  <MoneyList items={data.recurring.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t}
+                  <MoneyList items={data.recurring.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ recurring: { ...data.recurring, expenses: v } })} />
                 </div>
               </div>
@@ -742,12 +942,12 @@ export default function FinanceDashboard({ locale = "en" }) {
               <div className="fd-grid cols-2">
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.extraIncome}</div>
-                  <MoneyList items={calc.m.income} accent="var(--green)" cur={cur} t={t}
+                  <MoneyList items={calc.m.income} accent="var(--green)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ months: { ...data.months, [month]: { ...calc.m, income: v } } })} />
                 </div>
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.variableSpending}</div>
-                  <MoneyList items={calc.m.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t}
+                  <MoneyList items={calc.m.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ months: { ...data.months, [month]: { ...calc.m, expenses: v } } })} />
                 </div>
               </div>
@@ -758,47 +958,60 @@ export default function FinanceDashboard({ locale = "en" }) {
         {/* ---------------- Net Worth ---------------- */}
         {tab === "networth" && (
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
-            <div className="fd-grid cols-3">
+            <div className="fd-grid cols-2">
               <Kpi label={t.totalAssets} value={money(calc.assets, cur)} tone="pos" />
               <Kpi label={t.totalDebt} value={money(calc.liab, cur)} tone="neg" />
-              <Kpi label={t.kNetWorth} value={money(calc.netWorth, cur)} />
             </div>
             <div className="card glow">
               <div className="sec-h"><div className="sec-t">{t.secNetWorthTrend}</div></div>
               <NetWorthChart hist={calc.histArr} cur={cur} t={t} />
             </div>
-            <div className="fd-grid cols-2">
-              <div className="card">
-                <div className="sec-h"><div className="sec-t">{t.secAssets}</div></div>
-                <MoneyList items={data.assets} categories={ASSET_TYPES} accent="var(--green)" cur={cur} t={t}
-                  onChange={(v) => setAssetsLiab("assets", v)} />
+            <div className="card">
+              <div className="sec-h"><div className="sec-t">{t.secBalanceSheet}</div></div>
+              <div className="fd-grid cols-2">
+                <div>
+                  <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secAssets}</div>
+                  <MoneyList items={data.assets} categories={ASSET_TYPES} accent="var(--green)" cur={cur} t={t} editing={editing}
+                    onChange={(v) => setAssetsLiab("assets", v)} />
+                </div>
+                <div>
+                  <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secLiabilities}</div>
+                  <MoneyList items={data.liabilities} accent="var(--red)" cur={cur} t={t} editing={editing}
+                    onChange={(v) => setAssetsLiab("liabilities", v)} />
+                </div>
               </div>
-              <div className="card">
-                <div className="sec-h"><div className="sec-t">{t.secLiabilities}</div></div>
-                <MoneyList items={data.liabilities} accent="var(--red)" cur={cur} t={t}
-                  onChange={(v) => setAssetsLiab("liabilities", v)} />
+              <div className="row" style={{ marginTop: 12, borderTop: "1px solid var(--line2)", borderBottom: "none", paddingTop: 14 }}>
+                <span className="lbl" style={{ fontWeight: 700 }}>{t.kNetWorth}</span>
+                <span className={"amt fd-tabnum " + (calc.netWorth >= 0 ? "pos" : "neg")} style={{ fontWeight: 700 }}>{money(calc.netWorth, cur)}</span>
+                <span />
               </div>
             </div>
           </div>
         )}
 
         {/* ---------------- Investments & Goals ---------------- */}
-        {tab === "invest" && (
+        {tab === "invest" && (() => {
+          const allocCats = new Set(data.portfolio.map((p) => p.category || INVEST_CATS[6])).size;
+          const showAlloc = allocCats >= 2;
+          return (
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
-            <div className="fd-grid cols-2">
-              <div className="card glow">
-                <div className="sec-h"><div className="sec-t">{t.secAllocation}</div><div className="sec-sub">{money(calc.invest, cur)}</div></div>
-                <AllocChart portfolio={data.portfolio} cur={cur} t={t} />
-              </div>
+            <div className={"fd-grid " + (showAlloc ? "cols-2" : "")}>
+              {showAlloc && (
+                <div className="card glow">
+                  <div className="sec-h"><div className="sec-t">{t.secAllocation}</div><div className="sec-sub">{money(calc.invest, cur)}</div></div>
+                  <AllocChart portfolio={data.portfolio} cur={cur} t={t} />
+                </div>
+              )}
               <div className="card">
-                <div className="sec-h"><div className="sec-t">{t.secHoldings}</div></div>
-                <MoneyList items={data.portfolio} categories={INVEST_CATS} accent="var(--gold2)" cur={cur} t={t}
+                <div className="sec-h"><div className="sec-t">{t.secHoldings}</div><div className="sec-sub">{money(calc.invest, cur)}</div></div>
+                <MoneyList items={data.portfolio} categories={INVEST_CATS} accent="var(--gold2)" cur={cur} t={t} editing={editing}
                   onChange={(v) => update({ portfolio: v })} />
               </div>
             </div>
 
             <div className="card">
               <div className="sec-h"><div className="sec-t">{t.secFinancialGoals}</div><div className="sec-sub">{t.goalsSub}</div></div>
+              {data.goals.length === 0 && <div className="empty">{t.noGoals}</div>}
               {data.goals.map((g) => {
                 const p = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
                 const remain = Math.max(0, g.target - g.current);
@@ -808,7 +1021,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                   <div key={g.id} style={{ padding: "14px 0", borderBottom: "1px dashed var(--line)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span style={{ fontSize: 15 }}>{g.label}</span>
-                      <button className="del" onClick={() => update({ goals: data.goals.filter((x) => x.id !== g.id) })}>✕</button>
+                      {editing && <button className="del" onClick={() => update({ goals: data.goals.filter((x) => x.id !== g.id) })}>✕</button>}
                     </div>
                     <div className="bar"><i style={{ width: p + "%" }} /></div>
                     <div className="goal-meta">
@@ -818,11 +1031,12 @@ export default function FinanceDashboard({ locale = "en" }) {
                   </div>
                 );
               })}
-              <GoalAdder onAdd={(g) => update({ goals: [...data.goals, g] })} t={t} />
+              {editing && <GoalAdder onAdd={(g) => update({ goals: [...data.goals, g] })} t={t} />}
             </div>
             <div className="note">{t.investNote}</div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ---------------- Retirement ---------------- */}
         {tab === "retire" && (
@@ -831,9 +1045,9 @@ export default function FinanceDashboard({ locale = "en" }) {
         )}
       </div>
 
-      {/* floating conversational-fill button */}
-      {!chatOpen && (
-        <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
+      {/* floating voice-assistant button (add / modify / delete) */}
+      {!chatOpen && !vaOpen && (
+        <button className="fab" onClick={openVA} aria-label={t.vaTitle}>🎤</button>
       )}
 
       {/* guided Q&A modal */}
@@ -960,6 +1174,78 @@ export default function FinanceDashboard({ locale = "en" }) {
           </div>
         </div>
       )}
+
+      {/* voice-assistant modal — add / modify / delete by voice or text */}
+      {vaOpen && (
+        <div className="modal-bg" onClick={closeVA}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-h">
+              <div>
+                <div className="fd-eyebrow">{t.vaEyebrow}</div>
+                <div className="sec-t" style={{ fontSize: 17 }}>{t.vaTitle}</div>
+              </div>
+              <button className="del" style={{ fontSize: 20 }} onClick={closeVA}>✕</button>
+            </div>
+            <div className="qa-body">
+              <div className="qa-hint">{t.vaHint}</div>
+
+              <div className="qa-inputs" style={{ marginTop: 12 }}>
+                <div className="qa-numwrap">
+                  <label className="kpi-l" style={{ display: "block", marginBottom: 4 }}>{t.vaTargetLabel}</label>
+                  <select className="inp" value={vaTarget} onChange={(e) => setVaTarget(e.target.value)}>
+                    {VA_TARGETS.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="addrow" style={{ marginTop: 12 }}>
+                <input className="inp" placeholder={t.vaPlaceholder} value={vaText}
+                  onChange={(e) => setVaText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && vaSubmit(vaText)} />
+                <button className="addbtn" onClick={() => vaSubmit(vaText)}>{t.vaParse}</button>
+              </div>
+
+              <div className="qa-inputs" style={{ marginTop: 10 }}>
+                {voice ? (
+                  <button className={"mic " + (vaListening ? "on" : "")} onClick={vaStartVoice}>
+                    <span className="mic-dot" />
+                    {vaListening ? t.listening : t.micSay}
+                  </button>
+                ) : (
+                  <div className="qa-hint">{t.vaTypeNote}</div>
+                )}
+              </div>
+
+              {vaHeard && <div className="qa-heard">{t.heard(vaHeard)}</div>}
+              {vaErr && <div className="qa-err">{vaErr}</div>}
+
+              {vaPreview && (
+                <div className="insight" style={{ marginTop: 14 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                    {vaPreview.kind === "add" ? t.vaAdd : vaPreview.kind === "modify" ? t.vaModify : t.vaDelete}
+                    {" · "}{vaBucketLabel(vaPreview.bucketKey)}
+                  </div>
+                  <div>
+                    {vaPreview.label}
+                    {vaPreview.kind !== "delete" && <> {" "}<b>{money(vaPreview.value, cur)}</b></>}
+                  </div>
+                  <div className="qa-actions" style={{ marginTop: 14 }}>
+                    <button className="fd-toolbtn" onClick={() => setVaPreview(null)}>{t.vaCancel}</button>
+                    <div style={{ flex: 1 }} />
+                    <button className="addbtn" onClick={() => vaApply(vaPreview)}>{t.vaConfirm}</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="changed" style={{ marginTop: 16 }}>
+                {vaLog.length === 0
+                  ? <span className="qa-hint">{t.vaEmptyLog}</span>
+                  : vaLog.map((c, j) => <span key={j} className="chip">✓ {c}</span>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1042,7 +1328,7 @@ function GoalAdder({ onAdd, t }) {
 }
 
 /* ----------------------------- retirement ----------------------------- */
-function RetInput({ label, value, onChange, suffix, hint }) {
+function RetInput({ label, value, onChange, suffix, hint, placeholder }) {
   return (
     <div>
       <div className="kpi-l" style={{ marginBottom: 6 }}>
@@ -1050,7 +1336,7 @@ function RetInput({ label, value, onChange, suffix, hint }) {
         {hint && <span style={{ color: "var(--dim)", marginLeft: 6, letterSpacing: 0, textTransform: "none" }}>{hint}</span>}
       </div>
       <div style={{ position: "relative" }}>
-        <input className="inp" type="number" value={value === undefined || value === null ? "" : value}
+        <input className="inp" type="number" placeholder={placeholder} value={value === undefined || value === null ? "" : value}
           onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
           style={{ width: "100%", paddingRight: suffix ? 34 : 11 }} />
         {suffix && <span style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "var(--dim)", fontSize: 13 }}>{suffix}</span>}
@@ -1059,9 +1345,12 @@ function RetInput({ label, value, onChange, suffix, hint }) {
   );
 }
 
+const RET_BASIC = ["currentAge", "retireAge", "monthlySpend"];
+const RET_DEFAULTS = { annualReturn: 5, inflation: 2, withdrawalRate: 4 };
 function RetirementView({ ret, onChange, calc, cur, t, H }) {
   const r = ret || {};
   const set = (k) => (v) => onChange({ [k]: v });
+  const [advOpen, setAdvOpen] = useState(false);
   const fillNow = () => onChange({
     currentSavings: Math.max(0, Math.round(calc.invest || calc.netWorth || 0)),
     monthlyContribution: Math.max(0, Math.round(calc.net || 0)),
@@ -1069,14 +1358,17 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
   });
 
   const m = useMemo(() => {
+    // empty advanced fields fall back to sensible defaults so the basic 3 inputs
+    // alone still produce a meaningful projection (explicit 0 is respected).
+    const num = (v, d) => (v === "" || v == null || isNaN(Number(v)) ? d : Number(v));
     const age = Number(r.currentAge) || 0;
     const rage = Number(r.retireAge) || 0;
-    const cs = Number(r.currentSavings) || 0;
-    const pmt = Number(r.monthlyContribution) || 0;
-    const ar = (Number(r.annualReturn) || 0) / 100;
-    const infl = (Number(r.inflation) || 0) / 100;
+    const cs = num(r.currentSavings, 0);
+    const pmt = num(r.monthlyContribution, 0);
+    const ar = num(r.annualReturn, 5) / 100;
+    const infl = num(r.inflation, 2) / 100;
     const spendYr = (Number(r.monthlySpend) || 0) * 12;
-    const wr = (Number(r.withdrawalRate) || 4) / 100;
+    const wr = num(r.withdrawalRate, 4) / 100;
     const valid = rage > age && spendYr > 0;
     const mr = ar / 12;
     const fv = (months) => mr === 0 ? cs + pmt * months
@@ -1109,6 +1401,8 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
   }, [r]);
 
   const FIELDS = t.retFields(cur);
+  const basicFields = FIELDS.filter((f) => RET_BASIC.includes(f.k));
+  const advFields = FIELDS.filter((f) => !RET_BASIC.includes(f.k));
 
   return (
     <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
@@ -1120,12 +1414,29 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
           </div>
           <button className="fd-toolbtn" onClick={fillNow}>{t.useCurrentNumbers}</button>
         </div>
-        <div className="fd-grid cols-4">
-          {FIELDS.map((f) => (
+        <div className="fd-grid cols-3">
+          {basicFields.map((f) => (
             <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
               value={r[f.k]} onChange={set(f.k)} />
           ))}
         </div>
+
+        <button className="fd-toolbtn" style={{ marginTop: 16 }} aria-expanded={advOpen}
+          onClick={() => setAdvOpen((v) => !v)}>
+          {t.retAdvanced} {advOpen ? "▴" : "▾"}
+        </button>
+        {advOpen && (
+          <>
+            <div className="sec-sub" style={{ margin: "10px 0 4px" }}>{t.retAdvancedHint}</div>
+            <div className="fd-grid cols-4">
+              {advFields.map((f) => (
+                <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
+                  placeholder={RET_DEFAULTS[f.k] != null ? String(RET_DEFAULTS[f.k]) : undefined}
+                  value={r[f.k]} onChange={set(f.k)} />
+              ))}
+            </div>
+          </>
+        )}
         <div className="note">{t.retNote}</div>
       </div>
 
