@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { STRINGS, VOICE, fonts } from "../i18n.jsx";
@@ -144,12 +144,13 @@ const buildCSS = (f) => `
   padding:0 16px;border-radius:10px;cursor:pointer;transition:.15s;}
 .addbtn:hover{background:var(--gold2);}
 .empty{color:var(--dim);font-size:13px;padding:14px 0;text-align:center;}
-.gauge-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
-.gauge{--p:0;width:120px;height:120px;border-radius:50%;flex-shrink:0;
-  background:conic-gradient(var(--gold) calc(var(--p)*1%),rgba(42,32,19,.07) 0);
-  display:flex;align-items:center;justify-content:center;position:relative;transition:.6s;}
-.gauge::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--surface);}
-.gauge .gv{position:relative;font-family:var(--serif);font-size:26px;font-weight:600;}
+.srate-top{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-start;}
+.srate-num{font-family:var(--serif);font-size:48px;font-weight:600;line-height:1;}
+.srate-word{font-size:13px;font-weight:600;margin-top:7px;}
+.srate-rows{flex:1;min-width:230px;}
+.srate-track{height:12px;border-radius:999px;background:rgba(42,32,19,.08);overflow:hidden;margin-top:22px;}
+.srate-track > i{display:block;height:100%;border-radius:999px;transition:width .7s ease;}
+.srate-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:6px;letter-spacing:.04em;}
 .bar{height:9px;border-radius:999px;background:rgba(42,32,19,.08);overflow:hidden;margin-top:8px;}
 .bar > i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .7s ease;}
 .goal-meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:7px;}
@@ -157,10 +158,24 @@ const buildCSS = (f) => `
 .legend{display:flex;flex-direction:column;gap:9px;}
 .legi{display:flex;align-items:center;gap:9px;font-size:13px;}
 .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.flowbar{display:flex;height:16px;border-radius:999px;overflow:hidden;background:rgba(42,32,19,.07);margin-top:14px;}
+.flowbar > span{height:100%;transition:width .7s ease;min-width:0;}
+.flowbar > span:not(:last-child){box-shadow:1px 0 0 rgba(255,254,251,.7);}
+.flowleg{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;}
+.flowleg .fl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);}
+.flowleg .fl .dot{width:11px;height:11px;border-radius:4px;}
+.flowleg .fl .v{font-family:var(--serif);color:var(--ink);font-weight:600;}
+.flowleg .fl .pct{color:var(--muted);font-size:12px;}
+.nwmix-top{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;}
+.nwmix-num{font-family:var(--serif);font-size:40px;font-weight:600;line-height:1;}
+.nwmix-ratio{text-align:right;}
+.nwmix-rnum{font-family:var(--serif);font-size:24px;font-weight:600;color:var(--ink);line-height:1;}
+.nwmix-cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:6px;}
 .insight{border:1px solid var(--line2);background:linear-gradient(180deg,rgba(194,151,47,.07),transparent);
   border-radius:14px;padding:16px 18px;font-size:14px;line-height:1.7;color:var(--text);}
 .insight b{color:var(--gold2);font-family:var(--serif);}
 .note{font-size:12px;color:var(--dim);line-height:1.6;margin-top:10px;}
+.ret-divider{height:1px;background:var(--line);border:0;margin:18px 0 12px;}
 .mselect{display:flex;align-items:center;gap:8px;}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .stagger>*{animation:rise .5s ease both;}
@@ -207,6 +222,18 @@ const buildCSS = (f) => `
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(196,92,54,.5)}70%{box-shadow:0 0 0 8px rgba(196,92,54,0)}100%{box-shadow:0 0 0 0 rgba(196,92,54,0)}}
 .qa-heard{font-size:13px;color:var(--gold2);margin-top:12px;font-style:italic;}
 .qa-err{font-size:13px;color:var(--red);margin-top:10px;line-height:1.5;}
+.quick-mic-row{margin-bottom:18px;padding-bottom:18px;border-bottom:1px dashed var(--line);}
+.quick-list{display:flex;flex-direction:column;gap:6px;}
+.quick-row{padding:12px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2);
+  transition:border-color .18s,background .18s,box-shadow .18s;cursor:pointer;}
+.quick-row:hover{border-color:var(--line2);}
+.quick-row.active{border-color:var(--gold);background:rgba(194,151,47,.08);box-shadow:0 0 0 2px rgba(194,151,47,.18);}
+.quick-q{font-size:13.5px;color:var(--text);font-weight:500;margin-bottom:9px;line-height:1.45;}
+.quick-opt{font-size:10.5px;color:var(--dim);margin-left:7px;border:1px solid var(--line2);
+  border-radius:20px;padding:1px 7px;vertical-align:middle;font-weight:400;}
+.quick-fields{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.quick-fields .inp{font-size:15px;padding:10px 12px;}
+.quick-fields .qa-num{padding-right:42px!important;}
 .more-wrap{position:relative;display:inline-block;}
 .more-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:150px;z-index:55;
   display:flex;flex-direction:column;gap:2px;padding:6px;
@@ -246,20 +273,35 @@ function MoneyList({ items, onChange, categories, valueKey = "value", accent, cu
     onChange([...items, it]);
     setLbl(""); setVal("");
   };
+  const editItem = (id, patch) => onChange(items.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   return (
     <div>
       {items.length === 0 && <div className="empty">{t.list.empty}</div>}
       {items.map((it) => (
-        <div className="row" key={it.id}>
-          <div className="lbl">
-            {it.label}
-            {it.category && <span className="cat">{it.category}</span>}
+        editing ? (
+          <div className="addrow" key={it.id}>
+            <input className="inp lbl-in" placeholder={t.list.name} value={it.label}
+              onChange={(e) => editItem(it.id, { label: e.target.value })} />
+            {categories && (
+              <select className="sel" value={it.category || categories[0]}
+                onChange={(e) => editItem(it.id, { category: e.target.value })}>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+            <input className="inp num-in" type="number" placeholder={t.list.amount} value={it[valueKey]}
+              onChange={(e) => editItem(it.id, { [valueKey]: e.target.value === "" ? "" : Number(e.target.value) })} />
+            <button className="del" onClick={() => onChange(items.filter((x) => x.id !== it.id))}>✕</button>
           </div>
-          <div className="amt" style={accent ? { color: accent } : null}>{money(it[valueKey], cur)}</div>
-          {editing
-            ? <button className="del" onClick={() => onChange(items.filter((x) => x.id !== it.id))}>✕</button>
-            : <span />}
-        </div>
+        ) : (
+          <div className="row" key={it.id}>
+            <div className="lbl">
+              {it.label}
+              {it.category && <span className="cat">{it.category}</span>}
+            </div>
+            <div className="amt" style={accent ? { color: accent } : null}>{money(it[valueKey], cur)}</div>
+            <span />
+          </div>
+        )
       ))}
       {editing && (
         <div className="addrow">
@@ -302,10 +344,9 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [tab, setTab] = useState("overview");
   const [month, setMonth] = useState(ym());
   const [chatOpen, setChatOpen] = useState(false);
-  const [qaStep, setQaStep] = useState(0);
-  const [qaVal, setQaVal] = useState("");
-  const [qaLabel, setQaLabel] = useState("");
-  const [qaItems, setQaItems] = useState([]);
+  const [quickVals, setQuickVals] = useState([]);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const activeIdxRef = React.useRef(0);
   const [qaLog, setQaLog] = useState([]);
   const [qaDone, setQaDone] = useState(false);
   const [listening, setListening] = useState(false);
@@ -426,9 +467,14 @@ export default function FinanceDashboard({ locale = "en" }) {
     return summary;
   };
 
-  // ---- guided Q&A handlers ----
+  // ---- guided fill (single fill-in-the-blank form) ----
+  const blankQuick = () => QUESTIONS.map(() => ({ val: "", label: "", items: [] }));
+
+  const setActive = (i) => { activeIdxRef.current = i; setActiveIdx(i); };
+
   const openQA = () => {
-    setQaStep(0); setQaVal(""); setQaLabel(""); setQaItems([]); setQaLog([]); setQaDone(false);
+    setQuickVals(blankQuick());
+    setActive(0); setQaLog([]); setQaDone(false);
     setHeard(""); setSpeechErr(""); setChatOpen(true);
   };
 
@@ -437,10 +483,63 @@ export default function FinanceDashboard({ locale = "en" }) {
     setListening(false);
   };
 
-  const startVoice = (q) => {
+  const setQuick = (i, patch) => {
+    setQuickVals((prev) => {
+      const base = prev.length ? prev : blankQuick();
+      const next = base.slice();
+      next[i] = { ...(next[i] || { val: "", label: "", items: [] }), ...patch };
+      return next;
+    });
+  };
+
+  // advance the active blank to the next question (or stop at the end)
+  const advanceActive = (from) => {
+    const nextIdx = from + 1;
+    if (nextIdx < QUESTIONS.length) setActive(nextIdx);
+    else { setActive(QUESTIONS.length - 1); stopVoice(); }
+  };
+
+  // parse one finalized utterance into the currently-active blank, then advance
+  const fillFromSpeech = (txt) => {
     if (!voice) return;
-    const withLabel = q && q.withLabel;
-    const multi = q && q.multi;
+    const P = voice.parser;
+    const i = activeIdxRef.current;
+    const q = QUESTIONS[i];
+    if (!q) return;
+    if (q.multi) {
+      const items = P.splitMultiLabelAmount(txt);
+      if (items.length) {
+        const fb = q.fallbackLabel || t.fallbackItem;
+        const mapped = items.map((it) => ({ label: it.label || fb, value: it.value }));
+        setQuickVals((prev) => {
+          const base = prev.length ? prev : blankQuick();
+          const next = base.slice();
+          const cur0 = next[i] || { val: "", label: "", items: [] };
+          next[i] = { ...cur0, items: [...(cur0.items || []), ...mapped] };
+          return next;
+        });
+        advanceActive(i);
+      } else if (q.optional && P.isNoneAnswer(txt)) advanceActive(i);
+      else setSpeechErr(t.speechMultiFail(txt));
+    } else if (q.withLabel) {
+      const { label, amount } = P.splitLabelAmount(txt);
+      const patch = {};
+      if (label) patch.label = label;
+      if (!isNaN(amount)) patch.val = String(Math.round(amount));
+      if (patch.label || patch.val) { setQuick(i, patch); advanceActive(i); }
+      else if (q.optional && P.isNoneAnswer(txt)) advanceActive(i);
+      else setSpeechErr(t.speechSingleFail(txt));
+    } else {
+      const n = P.parseSpoken(txt);
+      if (!isNaN(n)) { setQuick(i, { val: String(Math.round(n)) }); advanceActive(i); }
+      else if (q.optional && P.isNoneAnswer(txt)) advanceActive(i);
+      else setSpeechErr(t.speechSingleFail(txt));
+    }
+  };
+
+  // one continuous mic that fills blanks one after another
+  const startQuickVoice = () => {
+    if (!voice) return;
     setSpeechErr("");
     const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!SR) { setSpeechErr(t.speechNoSupport); return; }
@@ -449,101 +548,60 @@ export default function FinanceDashboard({ locale = "en" }) {
     try { rec = new SR(); } catch { setSpeechErr(t.speechCantStart); return; }
     rec.lang = voice.lang;
     rec.interimResults = true;
-    rec.continuous = false;
+    rec.continuous = true;
     rec.maxAlternatives = 1;
     recogRef.current = rec;
     setHeard("");
     rec.onresult = (e) => {
-      let txt = "";
-      for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
-      setHeard(txt);
-      const isFinal = e.results[e.results.length - 1].isFinal;
-      if (isFinal) {
-        const P = voice.parser;
-        if (multi) {
-          const items = P.splitMultiLabelAmount(txt);
-          if (items.length) {
-            const fb = (q && q.fallbackLabel) || t.fallbackItem;
-            setQaItems((prev) => [...prev, ...items.map((it) => ({ label: it.label || fb, value: it.value }))]);
-          } else if (q && q.optional && P.isNoneAnswer(txt)) {
-            setSpeechErr(t.speechNothing);
-          } else setSpeechErr(t.speechMultiFail(txt));
-        } else if (withLabel) {
-          const { label, amount } = P.splitLabelAmount(txt);
-          if (label) setQaLabel(label);
-          if (!isNaN(amount)) setQaVal(String(Math.round(amount)));
-          else if (q && q.optional && P.isNoneAnswer(txt)) setSpeechErr(t.speechNothing);
-        } else {
-          const n = P.parseSpoken(txt);
-          if (!isNaN(n)) setQaVal(String(Math.round(n)));
-          else if (q && q.optional && P.isNoneAnswer(txt)) setSpeechErr(t.speechNothing);
-          else setSpeechErr(t.speechSingleFail(txt));
-        }
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        const txt = r[0].transcript;
+        setHeard(txt);
+        if (r.isFinal) { setSpeechErr(""); fillFromSpeech(txt.trim()); }
       }
     };
     rec.onerror = (e) => {
-      setListening(false);
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") setSpeechErr(t.speechBlocked);
-      else if (e.error === "no-speech") setSpeechErr(t.speechNoHear);
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { setListening(false); setSpeechErr(t.speechBlocked); }
+      else if (e.error === "no-speech") { /* keep listening in continuous mode */ }
       else setSpeechErr(t.speechStopped);
     };
     rec.onend = () => setListening(false);
     try { rec.start(); setListening(true); } catch { setSpeechErr(t.speechCantStart); }
   };
 
-  const commitStep = (q) => {
-    const tg = q.target;
-    if (q.multi) {
-      const items = [...qaItems];
-      const typedVal = Number(qaVal);
-      if (qaVal !== "" && !isNaN(typedVal) && typedVal > 0)
-        items.push({ label: qaLabel.trim() || q.fallbackLabel || t.fallbackItem, value: Math.round(typedVal) });
-      if (!items.length) return q.optional;
-      let upd = {};
-      if (tg.type === "recurring_income") upd = { recurring_income: items.map((it) => ({ label: it.label, value: it.value })) };
-      else if (tg.type === "recurring_expense") upd = { recurring_expenses: items.map((it) => ({ label: it.label, value: it.value, category: tg.category || EXPENSE_CATS[6] })) };
-      else if (tg.type === "asset") upd = { assets: items.map((it) => ({ label: it.label, value: it.value, type: tg.assetType || ASSET_TYPES[4] })) };
-      else if (tg.type === "portfolio") upd = { portfolio: items.map((it) => ({ label: it.label, value: it.value, category: tg.category || INVEST_CATS[6] })) };
-      else if (tg.type === "liability") upd = { liabilities: items.map((it) => ({ label: it.label, value: it.value })) };
-      const changed = applyUpdates(upd);
-      if (changed.length) setQaLog((prev) => [...prev, ...changed]);
-      return true;
-    }
-    const val = Number(qaVal);
-    if (!q.optional && (qaVal === "" || isNaN(val))) return false;
-    if (qaVal === "" || isNaN(val) || val === 0) return true;
-    const label = tg.label || qaLabel.trim() || q.fallbackLabel || t.fallbackItem;
-    let upd = {};
-    if (tg.type === "retire") upd = { retire: { [tg.key]: val } };
-    else if (tg.type === "recurring_income") upd = { recurring_income: [{ label, value: val }] };
-    else if (tg.type === "recurring_expense") upd = { recurring_expenses: [{ label, value: val, category: tg.category || EXPENSE_CATS[6] }] };
-    else if (tg.type === "asset") upd = { assets: [{ label, value: val, type: tg.assetType || ASSET_TYPES[4] }] };
-    else if (tg.type === "portfolio") upd = { portfolio: [{ label, value: val, category: tg.category || INVEST_CATS[6] }] };
-    else if (tg.type === "liability") upd = { liabilities: [{ label, value: val }] };
+  // commit every filled blank at once
+  const applyQuick = () => {
+    stopVoice();
+    const upd = { recurring_income: [], recurring_expenses: [], assets: [], liabilities: [], portfolio: [], retire: {} };
+    QUESTIONS.forEach((q, i) => {
+      const qv = quickVals[i] || { val: "", label: "", items: [] };
+      const tg = q.target;
+      if (q.multi) {
+        const items = [...(qv.items || [])];
+        const typed = Number(qv.val);
+        if (qv.val !== "" && !isNaN(typed) && typed > 0)
+          items.push({ label: (qv.label || "").trim() || q.fallbackLabel || t.fallbackItem, value: Math.round(typed) });
+        if (!items.length) return;
+        if (tg.type === "recurring_income") upd.recurring_income.push(...items.map((it) => ({ label: it.label, value: it.value })));
+        else if (tg.type === "recurring_expense") upd.recurring_expenses.push(...items.map((it) => ({ label: it.label, value: it.value, category: tg.category || EXPENSE_CATS[6] })));
+        else if (tg.type === "asset") upd.assets.push(...items.map((it) => ({ label: it.label, value: it.value, category: tg.assetType || ASSET_TYPES[4] })));
+        else if (tg.type === "portfolio") upd.portfolio.push(...items.map((it) => ({ label: it.label, value: it.value, category: tg.category || INVEST_CATS[6] })));
+        else if (tg.type === "liability") upd.liabilities.push(...items.map((it) => ({ label: it.label, value: it.value })));
+        return;
+      }
+      const val = Number(qv.val);
+      if (qv.val === "" || isNaN(val) || val === 0) return;
+      const label = tg.label || (qv.label || "").trim() || q.fallbackLabel || t.fallbackItem;
+      if (tg.type === "retire") upd.retire[tg.key] = val;
+      else if (tg.type === "recurring_income") upd.recurring_income.push({ label, value: val });
+      else if (tg.type === "recurring_expense") upd.recurring_expenses.push({ label, value: val, category: tg.category || EXPENSE_CATS[6] });
+      else if (tg.type === "asset") upd.assets.push({ label, value: val, category: tg.assetType || ASSET_TYPES[4] });
+      else if (tg.type === "portfolio") upd.portfolio.push({ label, value: val, category: tg.category || INVEST_CATS[6] });
+      else if (tg.type === "liability") upd.liabilities.push({ label, value: val });
+    });
     const changed = applyUpdates(upd);
-    if (changed.length) setQaLog((prev) => [...prev, ...changed]);
-    return true;
-  };
-
-  const nextStep = (qList) => {
-    const q = qList[qaStep];
-    if (!commitStep(q)) return;
-    stopVoice(); setHeard(""); setSpeechErr("");
-    setQaVal(""); setQaLabel(""); setQaItems([]);
-    if (qaStep + 1 >= qList.length) setQaDone(true);
-    else setQaStep(qaStep + 1);
-  };
-
-  const skipStep = (qList) => {
-    stopVoice(); setHeard(""); setSpeechErr("");
-    setQaVal(""); setQaLabel(""); setQaItems([]);
-    if (qaStep + 1 >= qList.length) setQaDone(true);
-    else setQaStep(qaStep + 1);
-  };
-
-  const backStep = () => {
-    stopVoice(); setHeard(""); setSpeechErr("");
-    setQaVal(""); setQaLabel(""); setQaItems([]); setQaStep(Math.max(0, qaStep - 1));
+    setQaLog(changed);
+    setQaDone(true);
   };
 
   const QUESTIONS = useMemo(() => t.questions(cur, t.cats), [locale, cur]);
@@ -636,7 +694,6 @@ export default function FinanceDashboard({ locale = "en" }) {
   const TABS = [
     { key: "overview", label: t.tabs.overview },
     { key: "cashflow", label: t.tabs.cashflow },
-    { key: "networth", label: t.tabs.networth },
     { key: "invest", label: t.tabs.invest },
     { key: "retire", label: t.tabs.retire },
   ];
@@ -690,30 +747,123 @@ export default function FinanceDashboard({ locale = "en" }) {
         {/* ---------------- Overview ---------------- */}
         {tab === "overview" && (
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
-            <div className="fd-grid cols-3">
-              <Kpi label={t.kSavingsRate} value={calc.rate.toFixed(0) + "%"} tone={calc.rate >= 20 ? "pos" : calc.rate < 0 ? "neg" : ""} sub={calc.rate >= 30 ? t.srExcellent : calc.rate >= 20 ? t.srHealthy : calc.rate >= 0 ? t.srImprove : t.srOver} />
-              <Kpi label={t.kMonthlySurplus} value={money(calc.net, cur)} tone={calc.net >= 0 ? "pos" : "neg"} sub={t.surplusSub(t.short(calc.income), t.short(calc.expense))} />
-              <Kpi label={t.kInvestments} value={money(calc.invest, cur)} sub={t.holdingsCount(data.portfolio.length)} />
+            <div className="fd-grid cols-2">
+              <Kpi label={t.kNetWorth} value={money(calc.netWorth, cur)} tone={calc.netWorth >= 0 ? "pos" : "neg"} sub={`${t.totalAssets} ${t.short(calc.assets)}`} />
+              {(() => {
+                const dr = calc.assets > 0 ? Math.round((calc.liab / calc.assets) * 100) : 0;
+                return <Kpi label={t.debtRatio} value={dr + "%"} tone={dr === 0 ? "pos" : dr <= 50 ? "" : "neg"} sub={`${t.totalDebt} ${t.short(calc.liab)}`} />;
+              })()}
             </div>
 
-            <div className="insight">{t.insight(insightVals, H)}</div>
+            {/* net worth: composition bar + trend, unified */}
+            <div className="card glow">
+              {(() => {
+                const a = calc.assets, l = calc.liab, nw = calc.netWorth;
+                const basis = Math.max(1, a, l);
+                const segs = nw >= 0
+                  ? [
+                      { key: "nw", label: t.kNetWorth, val: nw, color: "#3c8a5f" },
+                      { key: "liab", label: t.secLiabilities, val: l, color: "#c45c36" },
+                    ]
+                  : [
+                      { key: "asset", label: t.secAssets, val: a, color: "#3c8a5f" },
+                      { key: "neg", label: t.netWorthNegative, val: -nw, color: "#b03b2e" },
+                    ];
+                return (
+                  <>
+                    <div className="sec-h">
+                      <div><div className="sec-t">{t.secNetWorthMix}</div><div className="sec-sub">{t.netWorthMixSub}</div></div>
+                    </div>
+                    <div className="flowbar">
+                      {segs.filter((s) => s.val > 0).map((s) => (
+                        <span key={s.key} title={s.label} style={{ width: (s.val / basis) * 100 + "%", background: s.color }} />
+                      ))}
+                    </div>
+                    <div className="flowleg">
+                      <div className="fl"><span className="dot" style={{ background: "#3c8a5f" }} /><span>{t.kNetWorth}</span><span className="v fd-tabnum">{money(nw, cur)}</span></div>
+                      <div className="fl"><span className="dot" style={{ background: "#c45c36" }} /><span>{t.totalDebt}</span><span className="v fd-tabnum">{money(l, cur)}</span></div>
+                      <div className="fl"><span className="dot" style={{ background: "rgba(42,32,19,.22)" }} /><span>{t.totalAssets}</span><span className="v fd-tabnum">{money(a, cur)}</span></div>
+                    </div>
+                  </>
+                );
+              })()}
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px dashed var(--line)" }}>
+                <div className="kpi-l" style={{ marginBottom: 12 }}>{t.secNetWorthTrend}</div>
+                <NetWorthChart hist={calc.histArr} cur={cur} t={t} />
+              </div>
+            </div>
 
             <div className="card">
-              <div className="sec-h"><div className="sec-t">{t.secGoalProgress}</div></div>
+              <div className="sec-h"><div className="sec-t">{t.secBalanceSheet}</div></div>
+              {(() => {
+                const cats = new Set(data.assets.map((e) => e.category || ASSET_TYPES[ASSET_TYPES.length - 1]));
+                if (data.assets.length === 0 || cats.size < 2) return null;
+                return (
+                  <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: "1px dashed var(--line)" }}>
+                    <div className="kpi-l" style={{ marginBottom: 12 }}>{t.assetMixLabel}</div>
+                    <CategoryDonut items={data.assets} cur={cur} t={t} fallback={ASSET_TYPES[ASSET_TYPES.length - 1]} />
+                  </div>
+                );
+              })()}
+              <div className="fd-grid cols-2">
+                <div>
+                  <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secAssets}</div>
+                  <MoneyList items={data.assets} categories={ASSET_TYPES} accent="var(--green)" cur={cur} t={t} editing={editing}
+                    onChange={(v) => setAssetsLiab("assets", v)} />
+                </div>
+                <div>
+                  <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secLiabilities}</div>
+                  <MoneyList items={data.liabilities} accent="var(--red)" cur={cur} t={t} editing={editing}
+                    onChange={(v) => setAssetsLiab("liabilities", v)} />
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="sec-h"><div className="sec-t">{t.secFinancialGoals}</div><div className="sec-sub">{t.goalsSub}</div></div>
               {data.goals.length === 0 && <div className="empty">{t.noGoals}</div>}
               {data.goals.map((g) => {
                 const p = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
+                const remain = Math.max(0, g.target - g.current);
+                const months = calc.net > 0 ? Math.ceil(remain / calc.net) : null;
+                const eta = months ? (() => { const d = new Date(); d.setMonth(d.getMonth() + months); return t.etaMonthYear(d); })() : null;
+                const editGoal = (patch) => update({ goals: data.goals.map((x) => (x.id === g.id ? { ...x, ...patch } : x)) });
                 return (
-                  <div key={g.id} style={{ marginBottom: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                      <span>{g.label}</span><span className="fd-tabnum" style={{ color: "var(--gold2)" }}>{p.toFixed(0)}%</span>
-                    </div>
-                    <div className="bar"><i style={{ width: p + "%" }} /></div>
-                    <div className="goal-meta"><span>{money(g.current, cur)}</span><span>{t.goalTarget(money(g.target, cur))}</span></div>
+                  <div key={g.id} style={{ padding: "14px 0", borderBottom: "1px dashed var(--line)" }}>
+                    {editing ? (
+                      <>
+                        <div className="addrow">
+                          <input className="inp lbl-in" placeholder={t.list.name} value={g.label}
+                            onChange={(e) => editGoal({ label: e.target.value })} />
+                          <button className="del" onClick={() => update({ goals: data.goals.filter((x) => x.id !== g.id) })}>✕</button>
+                        </div>
+                        <div className="addrow" style={{ marginTop: 8 }}>
+                          <input className="inp num-in" style={{ flex: 1 }} type="number" placeholder={t.goalSavedPH}
+                            value={g.current} onChange={(e) => editGoal({ current: e.target.value === "" ? "" : Number(e.target.value) })} />
+                          <span style={{ color: "var(--dim)", alignSelf: "center" }}>/</span>
+                          <input className="inp num-in" style={{ flex: 1 }} type="number" placeholder={t.goalTargetPH}
+                            value={g.target} onChange={(e) => editGoal({ target: e.target.value === "" ? "" : Number(e.target.value) })} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 15 }}>{g.label}</span>
+                        </div>
+                        <div className="bar"><i style={{ width: p + "%" }} /></div>
+                        <div className="goal-meta">
+                          <span>{money(g.current, cur)} / {money(g.target, cur)} ({p.toFixed(0)}%)</span>
+                          <span className="tag">{remain === 0 ? t.goalReached : months ? t.goalEta(months, eta) : t.goalNoSurplus}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
+              {editing && <GoalAdder onAdd={(g) => update({ goals: [...data.goals, g] })} t={t} />}
             </div>
+
+            <div className="insight">{t.insight(insightVals, H)}</div>
           </div>
         )}
 
@@ -731,36 +881,88 @@ export default function FinanceDashboard({ locale = "en" }) {
                   <input className="inp" type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 150 }} />
                 </div>
               </div>
-              <div className="gauge-wrap">
-                <div className="gauge" style={{ "--p": Math.max(0, Math.min(100, calc.rate)) }}>
-                  <span className="gv fd-tabnum">{calc.rate.toFixed(0)}%</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div className="row"><span className="lbl">{t.totalIncome}</span><span className="amt pos">{money(calc.income, cur)}</span><span /></div>
-                  <div className="row"><span className="lbl">{t.totalSpending}</span><span className="amt neg">{money(calc.expense, cur)}</span><span /></div>
-                  <div className="row"><span className="lbl" style={{ fontWeight: 700 }}>{t.monthlySurplus}</span><span className={"amt " + (calc.net >= 0 ? "pos" : "neg")} style={{ fontWeight: 700 }}>{money(calc.net, cur)}</span><span /></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="sec-h"><div className="sec-t">{t.secBudgetActual}</div><div className="sec-sub">{t.budgetActualSub}</div></div>
               {(() => {
-                const budget = calc.expFixed;
-                const actual = calc.expense;
-                const p = budget > 0 ? Math.min(100, (actual / budget) * 100) : 0;
-                const over = actual - budget;
+                const r = calc.rate;
+                const tone = r < 0 ? "#c45c36" : r >= 20 ? "#3c8a5f" : "#c2972f";
+                const word = r >= 30 ? t.srExcellent : r >= 20 ? t.srHealthy : r >= 0 ? t.srImprove : t.srOver;
+                const fill = Math.max(0, Math.min(100, r));
                 return (
                   <>
-                    <div className="bar"><i style={{ width: p + "%", background: over > 0 ? "var(--red)" : undefined }} /></div>
-                    <div className="goal-meta">
-                      <span>{t.budgetActualMeta(money(actual, cur), money(budget, cur))}</span>
-                      <span className="tag">{budget === 0 ? t.budgetNone : over > 0 ? t.over(money(over, cur)) : t.left(money(-over, cur))}</span>
+                    <div className="srate-top">
+                      <div>
+                        <div className="srate-num fd-tabnum" style={{ color: tone }}>{r.toFixed(0)}%</div>
+                        <div className="srate-word" style={{ color: tone }}>{word}</div>
+                      </div>
+                      <div className="srate-rows">
+                        <div className="row"><span className="lbl">{t.totalIncome}</span><span className="amt pos">{money(calc.income, cur)}</span><span /></div>
+                        <div className="row"><span className="lbl">{t.totalSpending}</span><span className="amt neg">{money(calc.expense, cur)}</span><span /></div>
+                        <div className="row"><span className="lbl" style={{ fontWeight: 700 }}>{t.monthlySurplus}</span><span className={"amt " + (calc.net >= 0 ? "pos" : "neg")} style={{ fontWeight: 700 }}>{money(calc.net, cur)}</span><span /></div>
+                      </div>
+                    </div>
+                    <div className="srate-track"><i style={{ width: fill + "%", background: tone }} /></div>
+                    <div className="srate-scale"><span>0%</span><span>50%</span><span>100%</span></div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* income-flow visualization: where this month's income goes */}
+            <div className="card">
+              <div className="sec-h"><div><div className="sec-t">{t.secIncomeFlow}</div><div className="sec-sub">{t.incomeFlowSub}</div></div></div>
+              {(() => {
+                const fixed = Math.max(0, calc.expFixed);
+                const variable = Math.max(0, calc.expense - calc.expFixed);
+                const saved = calc.net;
+                const basis = Math.max(1, saved >= 0 ? calc.income : calc.expense);
+                const segs = [
+                  { key: "fixed", label: t.recurringExpenses, val: fixed, color: "#c45c36" },
+                  { key: "var", label: t.variableSpending, val: variable, color: "#dba84e" },
+                  saved >= 0
+                    ? { key: "saved", label: t.monthlySurplus, val: saved, color: "#3c8a5f" }
+                    : { key: "deficit", label: t.flowDeficit, val: -saved, color: "#b03b2e" },
+                ];
+                return (
+                  <>
+                    <div className="flowbar">
+                      {segs.filter((s) => s.val > 0).map((s) => (
+                        <span key={s.key} title={s.label} style={{ width: (s.val / basis) * 100 + "%", background: s.color }} />
+                      ))}
+                    </div>
+                    <div className="flowleg">
+                      {segs.map((s) => (
+                        <div className="fl" key={s.key}>
+                          <span className="dot" style={{ background: s.color }} />
+                          <span>{s.label}</span>
+                          <span className="v fd-tabnum">{money(s.val, cur)}</span>
+                          <span className="pct fd-tabnum">{Math.round((s.val / basis) * 100)}%</span>
+                        </div>
+                      ))}
                     </div>
                   </>
                 );
               })()}
             </div>
+
+            {/* spending breakdown by category */}
+            {(() => {
+              const exp = [...data.recurring.expenses, ...calc.m.expenses];
+              const cats = new Set(exp.map((e) => e.category || EXPENSE_CATS[6]));
+              if (exp.length === 0 || cats.size < 2) return null;
+              const byCat = {};
+              exp.forEach((e) => { const k = e.category || EXPENSE_CATS[6]; byCat[k] = (byCat[k] || 0) + (Number(e.value) || 0); });
+              const totalExp = Object.values(byCat).reduce((a, b) => a + b, 0);
+              const topCat = Object.keys(byCat).reduce((a, b) => (byCat[b] > (byCat[a] || 0) ? b : a), null);
+              const topCatPct = topCat && totalExp > 0 ? Math.round((byCat[topCat] / totalExp) * 100) : 0;
+              return (
+                <div className="card">
+                  <div className="sec-h"><div><div className="sec-t">{t.secExpenseMix}</div><div className="sec-sub">{t.expenseMixSub}</div></div></div>
+                  <CategoryDonut items={exp} cur={cur} t={t} />
+                  {topCat && totalExp > 0 && (
+                    <div className="insight" style={{ marginTop: 14 }}>{t.topSpendInsight(topCat, topCatPct)}</div>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="card">
               <div className="sec-h"><div className="sec-t">{t.secRecurring}</div><div className="sec-sub">{t.recurringSub}</div></div>
@@ -792,40 +994,16 @@ export default function FinanceDashboard({ locale = "en" }) {
                     onChange={(v) => update({ months: { ...data.months, [month]: { ...calc.m, expenses: v } } })} />
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ---------------- Net Worth ---------------- */}
-        {tab === "networth" && (
-          <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
-            <div className="fd-grid cols-2">
-              <Kpi label={t.totalAssets} value={money(calc.assets, cur)} tone="pos" />
-              <Kpi label={t.totalDebt} value={money(calc.liab, cur)} tone="neg" />
-            </div>
-            <div className="card glow">
-              <div className="sec-h"><div className="sec-t">{t.secNetWorthTrend}</div></div>
-              <NetWorthChart hist={calc.histArr} cur={cur} t={t} />
-            </div>
-            <div className="card">
-              <div className="sec-h"><div className="sec-t">{t.secBalanceSheet}</div></div>
-              <div className="fd-grid cols-2">
-                <div>
-                  <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secAssets}</div>
-                  <MoneyList items={data.assets} categories={ASSET_TYPES} accent="var(--green)" cur={cur} t={t} editing={editing}
-                    onChange={(v) => setAssetsLiab("assets", v)} />
-                </div>
-                <div>
-                  <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secLiabilities}</div>
-                  <MoneyList items={data.liabilities} accent="var(--red)" cur={cur} t={t} editing={editing}
-                    onChange={(v) => setAssetsLiab("liabilities", v)} />
-                </div>
-              </div>
-              <div className="row" style={{ marginTop: 12, borderTop: "1px solid var(--line2)", borderBottom: "none", paddingTop: 14 }}>
-                <span className="lbl" style={{ fontWeight: 700 }}>{t.kNetWorth}</span>
-                <span className={"amt fd-tabnum " + (calc.netWorth >= 0 ? "pos" : "neg")} style={{ fontWeight: 700 }}>{money(calc.netWorth, cur)}</span>
-                <span />
-              </div>
+              {(() => {
+                const cats = new Set(calc.m.expenses.map((e) => e.category || EXPENSE_CATS[6]));
+                if (calc.m.expenses.length === 0 || cats.size < 2) return null;
+                return (
+                  <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px dashed var(--line)" }}>
+                    <div className="kpi-l" style={{ marginBottom: 12 }}>{t.variableSpending}</div>
+                    <CategoryDonut items={calc.m.expenses} cur={cur} t={t} />
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -834,8 +1012,17 @@ export default function FinanceDashboard({ locale = "en" }) {
         {tab === "invest" && (() => {
           const allocCats = new Set(data.portfolio.map((p) => p.category || INVEST_CATS[6])).size;
           const showAlloc = allocCats >= 2;
+          const share = calc.assets > 0 ? Math.round((calc.invest / calc.assets) * 100) : 0;
+          const top = data.portfolio.reduce((a, b) => ((Number(b.value) || 0) > (Number(a?.value) || 0) ? b : a), null);
+          const topPct = top && calc.invest > 0 ? Math.round(((Number(top.value) || 0) / calc.invest) * 100) : 0;
           return (
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
+            <div className="fd-grid cols-3">
+              <Kpi label={t.invKpiTotal} value={money(calc.invest, cur)} tone="pos" />
+              <Kpi label={t.invKpiShare} value={share + "%"} sub={t.invKpiShareSub(t.short(calc.assets))} />
+              <Kpi label={t.invKpiTop} value={top ? topPct + "%" : t.invKpiTopNone}
+                sub={top ? top.label : undefined} tone={topPct > 60 ? "neg" : ""} />
+            </div>
             <div className={"fd-grid " + (showAlloc ? "cols-2" : "")}>
               {showAlloc && (
                 <div className="card glow">
@@ -850,30 +1037,6 @@ export default function FinanceDashboard({ locale = "en" }) {
               </div>
             </div>
 
-            <div className="card">
-              <div className="sec-h"><div className="sec-t">{t.secFinancialGoals}</div><div className="sec-sub">{t.goalsSub}</div></div>
-              {data.goals.length === 0 && <div className="empty">{t.noGoals}</div>}
-              {data.goals.map((g) => {
-                const p = g.target > 0 ? Math.min(100, (g.current / g.target) * 100) : 0;
-                const remain = Math.max(0, g.target - g.current);
-                const months = calc.net > 0 ? Math.ceil(remain / calc.net) : null;
-                const eta = months ? (() => { const d = new Date(); d.setMonth(d.getMonth() + months); return t.etaMonthYear(d); })() : null;
-                return (
-                  <div key={g.id} style={{ padding: "14px 0", borderBottom: "1px dashed var(--line)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 15 }}>{g.label}</span>
-                      {editing && <button className="del" onClick={() => update({ goals: data.goals.filter((x) => x.id !== g.id) })}>✕</button>}
-                    </div>
-                    <div className="bar"><i style={{ width: p + "%" }} /></div>
-                    <div className="goal-meta">
-                      <span>{money(g.current, cur)} / {money(g.target, cur)} ({p.toFixed(0)}%)</span>
-                      <span className="tag">{remain === 0 ? t.goalReached : months ? t.goalEta(months, eta) : t.goalNoSurplus}</span>
-                    </div>
-                  </div>
-                );
-              })}
-              {editing && <GoalAdder onAdd={(g) => update({ goals: [...data.goals, g] })} t={t} />}
-            </div>
             <div className="note">{t.investNote}</div>
           </div>
           );
@@ -891,18 +1054,23 @@ export default function FinanceDashboard({ locale = "en" }) {
         <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
       )}
 
-      {/* guided Q&A modal */}
+      {/* guided fill modal — single fill-in-the-blank form */}
       {chatOpen && (() => {
         const total = QUESTIONS.length;
-        const q = QUESTIONS[qaStep];
-        const pct = qaDone ? 100 : Math.round((qaStep / total) * 100);
+        const isFilled = (q, v) => {
+          if (!v) return false;
+          if (q.multi) return (v.items && v.items.length > 0) || (v.val !== "" && Number(v.val) > 0);
+          return v.val !== "" && !isNaN(Number(v.val)) && Number(v.val) !== 0;
+        };
+        const filledCount = QUESTIONS.reduce((n, q, i) => n + (isFilled(q, quickVals[i]) ? 1 : 0), 0);
+        const pct = qaDone ? 100 : Math.round((filledCount / total) * 100);
         return (
           <div className="modal-bg" onClick={() => { stopVoice(); setChatOpen(false); }}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-h">
                 <div>
                   <div className="fd-eyebrow">{t.guidedTitle}</div>
-                  <div className="sec-t" style={{ fontSize: 17 }}>{qaDone ? t.qDone : t.qProgress(qaStep + 1, total)}</div>
+                  <div className="sec-t" style={{ fontSize: 17 }}>{qaDone ? t.qDone : t.quickSubtitle}</div>
                 </div>
                 <button className="del" style={{ fontSize: 20 }} onClick={() => { stopVoice(); setChatOpen(false); }}>✕</button>
               </div>
@@ -910,62 +1078,64 @@ export default function FinanceDashboard({ locale = "en" }) {
 
               {!qaDone ? (
                 <div className="qa-body">
-                  <div className="qa-q">{q.q}</div>
-                  {q.hint && <div className="qa-hint">{q.hint}</div>}
-                  <div className="qa-inputs">
-                    {q.withLabel && (
-                      <div className="qa-numwrap">
-                        <input className="inp" placeholder={t.namePH} value={qaLabel}
-                          onChange={(e) => setQaLabel(e.target.value)} />
-                      </div>
-                    )}
-                    <div className="qa-numwrap">
-                      <input className="inp qa-num" type="number" inputMode="numeric" autoFocus
-                        placeholder={q.placeholder || t.amountPH} value={qaVal}
-                        onChange={(e) => setQaVal(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && nextStep(QUESTIONS)} />
-                      <span className="qa-suffix">{q.suffix}</span>
-                    </div>
-                    {q.multi && (
-                      <button className="fd-toolbtn" onClick={() => {
-                        const v = Number(qaVal);
-                        if (qaVal === "" || isNaN(v) || v <= 0) return;
-                        setQaItems((prev) => [...prev, { label: qaLabel.trim() || q.fallbackLabel || t.fallbackItem, value: Math.round(v) }]);
-                        setQaVal(""); setQaLabel("");
-                      }}>{t.addThis}</button>
-                    )}
-                    {voice && (
-                      <button className={"mic " + (listening ? "on" : "")} onClick={() => startVoice(q)}>
+                  {voice && (
+                    <div className="quick-mic-row">
+                      <button className={"mic " + (listening ? "on" : "")} onClick={listening ? stopVoice : startQuickVoice}>
                         <span className="mic-dot" />
-                        {listening ? t.listening : t.micSay}
+                        {listening ? t.quickListening : t.quickStart}
                       </button>
-                    )}
+                      <div className="qa-hint" style={{ marginTop: 8 }}>{t.quickHint}</div>
+                      {heard && <div className="qa-heard">{t.heard(heard)}</div>}
+                      {speechErr && <div className="qa-err">{speechErr}</div>}
+                    </div>
+                  )}
+                  <div className="quick-list">
+                    {QUESTIONS.map((q, i) => {
+                      const qv = quickVals[i] || { val: "", label: "", items: [] };
+                      const active = i === activeIdx && listening;
+                      return (
+                        <div key={i} className={"quick-row" + (active ? " active" : "")} onClick={() => setActive(i)}>
+                          <div className="quick-q">{q.q}{q.optional && <span className="quick-opt">{t.quickOptional}</span>}</div>
+                          <div className="quick-fields">
+                            {q.withLabel && (
+                              <input className="inp" placeholder={t.namePH} value={qv.label}
+                                onFocus={() => setActive(i)}
+                                onChange={(e) => setQuick(i, { label: e.target.value })} />
+                            )}
+                            <div className="qa-numwrap" style={{ flex: q.withLabel ? "0 0 132px" : 1 }}>
+                              <input className="inp qa-num" type="number" inputMode="numeric"
+                                placeholder={q.placeholder || t.amountPH} value={qv.val}
+                                onFocus={() => setActive(i)}
+                                onChange={(e) => setQuick(i, { val: e.target.value })} />
+                              <span className="qa-suffix">{q.suffix}</span>
+                            </div>
+                            {q.multi && (
+                              <button className="fd-toolbtn" onClick={(e) => {
+                                e.stopPropagation();
+                                const v = Number(qv.val);
+                                if (qv.val === "" || isNaN(v) || v <= 0) return;
+                                setQuick(i, { items: [...(qv.items || []), { label: (qv.label || "").trim() || q.fallbackLabel || t.fallbackItem, value: Math.round(v) }], val: "", label: "" });
+                              }}>{t.addThis}</button>
+                            )}
+                          </div>
+                          {q.multi && qv.items && qv.items.length > 0 && (
+                            <div className="changed" style={{ marginTop: 8 }}>
+                              {qv.items.map((it, j) => (
+                                <span key={j} className="chip">
+                                  {it.label} {money(it.value, cur)}
+                                  <button className="del" style={{ marginLeft: 6 }}
+                                    onClick={(e) => { e.stopPropagation(); setQuick(i, { items: qv.items.filter((_, k) => k !== j) }); }}>✕</button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  {heard && <div className="qa-heard">{t.heard(heard)}</div>}
-                  {speechErr && <div className="qa-err">{speechErr}</div>}
-                  {q.multi && qaItems.length > 0 && (
-                    <div className="changed" style={{ marginTop: 12 }}>
-                      {qaItems.map((it, j) => (
-                        <span key={j} className="chip">
-                          {it.label} {money(it.value, cur)}
-                          <button className="del" style={{ marginLeft: 6 }}
-                            onClick={() => setQaItems((prev) => prev.filter((_, k) => k !== j))}>✕</button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {qaLog.length > 0 && (
-                    <div className="changed" style={{ marginTop: 16 }}>
-                      {qaLog.slice(-4).map((c, j) => <span key={j} className="chip">✓ {c}</span>)}
-                    </div>
-                  )}
                   <div className="qa-actions">
-                    {qaStep > 0 && <button className="fd-toolbtn" onClick={backStep}>{t.back}</button>}
                     <div style={{ flex: 1 }} />
-                    {q.optional && <button className="fd-toolbtn" onClick={() => skipStep(QUESTIONS)}>{t.skip}</button>}
-                    <button className="addbtn" onClick={() => nextStep(QUESTIONS)}>
-                      {qaStep + 1 >= total ? t.finish : t.next}
-                    </button>
+                    <button className="addbtn" onClick={applyQuick}>{t.finish}</button>
                   </div>
                 </div>
               ) : (
@@ -1025,21 +1195,22 @@ function NetWorthChart({ hist, cur, t }) {
     return <div className="empty">{t.chartNeedTwo}</div>;
   return (
     <ResponsiveContainer width="100%" height={210}>
-      <LineChart data={hist} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+      <BarChart data={hist} margin={{ top: 8, right: 8, left: -8, bottom: 0 }} barCategoryGap="28%">
         <defs>
           <linearGradient id="gld" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c2972f" stopOpacity={0.9} />
-            <stop offset="100%" stopColor="#c2972f" stopOpacity={0.2} />
+            <stop offset="0%" stopColor="#c2972f" stopOpacity={0.95} />
+            <stop offset="100%" stopColor="#c2972f" stopOpacity={0.45} />
           </linearGradient>
         </defs>
         <CartesianGrid stroke="rgba(42,32,19,.07)" vertical={false} />
         <XAxis dataKey="m" tick={{ fill: "#897c64", fontSize: 11 }} axisLine={false} tickLine={false} />
         <YAxis tickFormatter={t.short} tick={{ fill: "#897c64", fontSize: 11 }} axisLine={false} tickLine={false} width={48} />
         <Tooltip
+          cursor={{ fill: "rgba(194,151,47,.08)" }}
           contentStyle={{ background: "#fffefb", border: "1px solid rgba(194,151,47,.3)", borderRadius: 10, color: "#3d3322" }}
           formatter={(v) => [money(v, cur), t.chartNetWorthName]} labelStyle={{ color: "#897c64" }} />
-        <Line type="monotone" dataKey="v" stroke="url(#gld)" strokeWidth={2.5} dot={{ r: 3, fill: "#c2972f" }} activeDot={{ r: 5 }} />
-      </LineChart>
+        <Bar dataKey="v" fill="url(#gld)" radius={[5, 5, 0, 0]} maxBarSize={42} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }
@@ -1070,6 +1241,40 @@ function AllocChart({ portfolio, cur, t }) {
             <span className="dot" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
             <span style={{ flex: 1 }}>{e.name}</span>
             <span className="fd-tabnum" style={{ color: "var(--muted)" }}>{total > 0 ? ((e.value / total) * 100).toFixed(0) : 0}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CategoryDonut({ items, cur, t, fallback }) {
+  const byCat = useMemo(() => {
+    const fb = fallback || t.cats.expense[6];
+    const m = {};
+    items.forEach((e) => { const k = e.category || fb; m[k] = (m[k] || 0) + (Number(e.value) || 0); });
+    return Object.keys(m).map((k) => ({ name: k, value: m[k] })).sort((a, b) => b.value - a.value);
+  }, [items]);
+  const total = sum(byCat);
+  if (byCat.length === 0 || total <= 0) return <div className="empty">{t.allocEmpty}</div>;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <ResponsiveContainer width={160} height={160}>
+        <PieChart>
+          <Pie data={byCat} dataKey="value" innerRadius={48} outerRadius={72} paddingAngle={2} stroke="none">
+            {byCat.map((e, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+          </Pie>
+          <Tooltip contentStyle={{ background: "#fffefb", border: "1px solid rgba(194,151,47,.3)", borderRadius: 10 }}
+            formatter={(v) => money(v, cur)} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="legend" style={{ flex: 1, minWidth: 160 }}>
+        {byCat.map((e, i) => (
+          <div className="legi" key={e.name}>
+            <span className="dot" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+            <span style={{ flex: 1 }}>{e.name}</span>
+            <span className="fd-tabnum" style={{ color: "var(--ink)", fontWeight: 600 }}>{money(e.value, cur)}</span>
+            <span className="fd-tabnum" style={{ color: "var(--muted)", minWidth: 34, textAlign: "right" }}>{((e.value / total) * 100).toFixed(0)}%</span>
           </div>
         ))}
       </div>
@@ -1114,12 +1319,11 @@ function RetInput({ label, value, onChange, suffix, hint, placeholder }) {
   );
 }
 
-const RET_BASIC = ["currentAge", "retireAge", "monthlySpend"];
 const RET_DEFAULTS = { annualReturn: 5, inflation: 2, withdrawalRate: 4 };
 function RetirementView({ ret, onChange, calc, cur, t, H }) {
   const r = ret || {};
   const set = (k) => (v) => onChange({ [k]: v });
-  const [advOpen, setAdvOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const fillNow = () => onChange({
     currentSavings: Math.max(0, Math.round(calc.invest || calc.netWorth || 0)),
     monthlyContribution: Math.max(0, Math.round(calc.net || 0)),
@@ -1170,43 +1374,38 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
   }, [r]);
 
   const FIELDS = t.retFields(cur);
-  const basicFields = FIELDS.filter((f) => RET_BASIC.includes(f.k));
-  const advFields = FIELDS.filter((f) => !RET_BASIC.includes(f.k));
+  const byKey = Object.fromEntries(FIELDS.map((f) => [f.k, f]));
+  const pick = (keys) => keys.map((k) => byKey[k]).filter(Boolean);
+  const orderedFields = pick([
+    "currentAge", "retireAge", "monthlySpend", "currentSavings",
+    "monthlyContribution", "annualReturn", "inflation", "withdrawalRate",
+  ]);
+  const field = (f) => (
+    <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
+      placeholder={RET_DEFAULTS[f.k] != null ? String(RET_DEFAULTS[f.k]) : undefined}
+      value={r[f.k]} onChange={set(f.k)} />
+  );
 
   return (
     <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
       <div className="card">
         <div className="sec-h">
-          <div>
-            <div className="sec-t">{t.retInputs}</div>
-            <div className="sec-sub">{m.yrsLeft > 0 ? t.yrsLeft(m.yrsLeft) : t.checkAge}</div>
-          </div>
-          <button className="fd-toolbtn" onClick={fillNow}>{t.useCurrentNumbers}</button>
-        </div>
-        <div className="fd-grid cols-3">
-          {basicFields.map((f) => (
-            <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
-              value={r[f.k]} onChange={set(f.k)} />
-          ))}
-        </div>
-
-        <button className="fd-toolbtn" style={{ marginTop: 16 }} aria-expanded={advOpen}
-          onClick={() => setAdvOpen((v) => !v)}>
-          {t.retAdvanced} {advOpen ? "▴" : "▾"}
-        </button>
-        {advOpen && (
-          <>
-            <div className="sec-sub" style={{ margin: "10px 0 4px" }}>{t.retAdvancedHint}</div>
-            <div className="fd-grid cols-4">
-              {advFields.map((f) => (
-                <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
-                  placeholder={RET_DEFAULTS[f.k] != null ? String(RET_DEFAULTS[f.k]) : undefined}
-                  value={r[f.k]} onChange={set(f.k)} />
-              ))}
+          <button onClick={() => setPanelOpen((v) => !v)} aria-expanded={panelOpen}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ color: "var(--dim)", fontSize: 13, lineHeight: 1 }}>{panelOpen ? "▾" : "▸"}</span>
+            <div>
+              <div className="sec-t">{t.retInputs}</div>
+              <div className="sec-sub">{m.yrsLeft > 0 ? t.yrsLeft(m.yrsLeft) : t.checkAge}</div>
             </div>
+          </button>
+          {panelOpen && <button className="fd-toolbtn" onClick={fillNow}>{t.useCurrentNumbers}</button>}
+        </div>
+        {panelOpen && (
+          <>
+            <div className="fd-grid cols-4">{orderedFields.map(field)}</div>
+            <div className="note">{t.retNote}</div>
           </>
         )}
-        <div className="note">{t.retNote}</div>
       </div>
 
       {!m.valid ? (

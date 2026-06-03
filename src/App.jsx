@@ -42,16 +42,18 @@ export default function App() {
     <>
       <FinanceDashboard locale={lang} key={lang} />
 
-      {/* language dropdown (top-right) */}
+      {/* language dropdown (bottom-left) */}
       <div ref={ref} style={styles.wrap}>
         <button
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          style={styles.trigger}
+          style={{ ...styles.trigger, ...(open ? styles.triggerOn : {}) }}
+          onMouseEnter={(e) => { if (!open) e.currentTarget.style.borderColor = "rgba(194,151,47,.55)"; }}
+          onMouseLeave={(e) => { if (!open) e.currentTarget.style.borderColor = "rgba(140,110,40,.22)"; }}
         >
           <span style={styles.globe} aria-hidden>🌐</span>
-          <span style={styles.label}>{current.native}</span>
+          <span style={styles.label}>{current.label}</span>
           <span style={{ ...styles.caret, transform: open ? "rotate(180deg)" : "none" }} aria-hidden>▾</span>
         </button>
 
@@ -66,12 +68,11 @@ export default function App() {
                   aria-selected={active}
                   onClick={() => choose(l.code)}
                   style={{ ...styles.item, ...(active ? styles.itemOn : {}) }}
-                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(194,151,47,.10)"; }}
+                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(194,151,47,.09)"; }}
                   onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                 >
-                  <span style={styles.itemBadge}>{l.label}</span>
                   <span style={styles.itemNative}>{l.native}</span>
-                  {active && <span style={styles.check} aria-hidden>✓</span>}
+                  <span style={styles.check} aria-hidden>{active ? "✓" : ""}</span>
                 </button>
               );
             })}
@@ -84,40 +85,35 @@ export default function App() {
 
 const styles = {
   wrap: {
-    position: "fixed", bottom: 22, left: 22, zIndex: 60,
+    position: "fixed", bottom: 20, left: 20, zIndex: 60,
     fontFamily: "system-ui, -apple-system, sans-serif",
   },
   trigger: {
-    display: "flex", alignItems: "center", gap: 8,
-    padding: "8px 14px", borderRadius: 999, cursor: "pointer",
-    background: "rgba(255,254,251,.92)", border: "1px solid rgba(140,110,40,.30)",
+    display: "flex", alignItems: "center", gap: 7,
+    padding: "6px 11px", borderRadius: 999, cursor: "pointer",
+    background: "rgba(255,254,251,.85)", border: "1px solid rgba(140,110,40,.22)",
     backdropFilter: "blur(6px)",
-    boxShadow: "0 8px 24px -12px rgba(140,110,40,.4)",
-    color: "#5f553f", fontSize: 13, fontWeight: 600, transition: ".15s",
+    color: "#897c64", fontSize: 12.5, fontWeight: 500, letterSpacing: ".01em",
+    transition: "border-color .15s, color .15s",
   },
-  globe: { fontSize: 14, lineHeight: 1 },
+  triggerOn: { borderColor: "rgba(194,151,47,.55)", color: "#3d3322" },
+  globe: { fontSize: 13, lineHeight: 1, opacity: .85 },
   label: { whiteSpace: "nowrap" },
-  caret: { fontSize: 10, color: "#a08a4e", transition: "transform .15s" },
+  caret: { fontSize: 9, color: "#a8842e", transition: "transform .15s" },
   menu: {
-    position: "absolute", bottom: "calc(100% + 8px)", left: 0, minWidth: 180,
-    padding: 6, display: "flex", flexDirection: "column", gap: 2,
-    background: "rgba(255,254,251,.98)", border: "1px solid rgba(140,110,40,.30)",
-    borderRadius: 16, backdropFilter: "blur(8px)",
-    boxShadow: "0 18px 40px -16px rgba(140,110,40,.5)",
+    position: "absolute", bottom: "calc(100% + 6px)", left: 0, minWidth: 132,
+    padding: 4, display: "flex", flexDirection: "column", gap: 1,
+    background: "rgba(255,254,251,.97)", border: "1px solid rgba(140,110,40,.20)",
+    borderRadius: 12, backdropFilter: "blur(8px)",
+    boxShadow: "0 14px 34px -18px rgba(140,110,40,.55)",
   },
   item: {
-    display: "flex", alignItems: "center", gap: 10,
-    padding: "9px 12px", borderRadius: 11, cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+    padding: "7px 10px", borderRadius: 8, cursor: "pointer",
     border: "none", background: "transparent", textAlign: "left",
-    color: "#5f553f", fontSize: 14, fontWeight: 600, transition: ".12s", width: "100%",
+    color: "#3d3322", fontSize: 13, fontWeight: 500, transition: "background .12s", width: "100%",
   },
-  itemOn: { background: "rgba(194,151,47,.16)", color: "#8a6a17" },
-  itemBadge: {
-    display: "inline-flex", alignItems: "center", justifyContent: "center",
-    minWidth: 26, height: 22, padding: "0 5px", borderRadius: 7,
-    background: "rgba(140,110,40,.12)", color: "#8a6a17",
-    fontSize: 12, fontWeight: 700,
-  },
-  itemNative: { flex: 1, whiteSpace: "nowrap" },
-  check: { color: "#c2972f", fontSize: 13, fontWeight: 800 },
+  itemOn: { background: "rgba(194,151,47,.14)", color: "#a8842e", fontWeight: 600 },
+  itemNative: { whiteSpace: "nowrap" },
+  check: { color: "#c2972f", fontSize: 11, fontWeight: 700, width: 10, textAlign: "right" },
 };
