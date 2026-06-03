@@ -84,7 +84,7 @@ export default function App() {
 
 const styles = {
   wrap: {
-    position: "fixed", top: 20, right: 22, zIndex: 60,
+    position: "fixed", bottom: 22, left: 22, zIndex: 60,
     fontFamily: "system-ui, -apple-system, sans-serif",
   },
   trigger: {
@@ -99,7 +99,7 @@ const styles = {
   label: { whiteSpace: "nowrap" },
   caret: { fontSize: 10, color: "#a08a4e", transition: "transform .15s" },
   menu: {
-    position: "absolute", top: "calc(100% + 8px)", right: 0, minWidth: 180,
+    position: "absolute", bottom: "calc(100% + 8px)", left: 0, minWidth: 180,
     padding: 6, display: "flex", flexDirection: "column", gap: 2,
     background: "rgba(255,254,251,.98)", border: "1px solid rgba(140,110,40,.30)",
     borderRadius: 16, backdropFilter: "blur(8px)",
