@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useLayoutEffect } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
@@ -7,6 +7,7 @@ import { STRINGS, VOICE, fonts } from "../i18n.jsx";
 
 /* ----------------------------- persistent storage ----------------------------- */
 const KEY = "finance:data:v3";
+const TOUR_KEY = "finance:tour:v1";
 const LEGACY_KEYS = ["finance:data:en:v2", "finance:data:v2"];
 const store = {
   async get(k) {
@@ -187,6 +188,28 @@ const buildCSS = (f) => `
   background:linear-gradient(160deg,var(--gold2),var(--gold));color:#1b1610;font-size:22px;cursor:pointer;z-index:40;
   box-shadow:0 12px 30px -8px rgba(194,151,47,.5);transition:.2s;animation:rise .5s ease both;}
 .fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 36px -8px rgba(194,151,47,.65);}
+/* guided tour */
+.tour-root{position:fixed;inset:0;z-index:9000;}
+.tour-dim{position:absolute;inset:0;background:rgba(28,22,12,.62);backdrop-filter:blur(2px);animation:fade .25s ease both;}
+.tour-spot{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(28,22,12,.62);
+  border:2px solid var(--gold);transition:top .3s cubic-bezier(.4,0,.2,1),left .3s cubic-bezier(.4,0,.2,1),width .3s cubic-bezier(.4,0,.2,1),height .3s cubic-bezier(.4,0,.2,1);pointer-events:none;}
+.tour-tip{position:absolute;background:var(--surface);border:1px solid var(--line2);border-radius:14px;
+  padding:16px 18px;box-shadow:0 24px 60px -20px rgba(40,30,10,.6);animation:tourPop .25s ease both;}
+@keyframes tourPop{from{opacity:0;transform:translateY(6px) scale(.98);}to{opacity:1;transform:none;}}
+.tour-no{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold2);font-weight:600;margin-bottom:6px;}
+.tour-t{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);margin-bottom:6px;line-height:1.3;}
+.tour-b{font-size:13.5px;line-height:1.55;color:var(--muted);}
+.tour-dots{display:flex;gap:5px;margin:15px 0 13px;}
+.tour-dot{width:6px;height:6px;border-radius:50%;background:var(--line2);transition:.2s;}
+.tour-dot.on{background:var(--gold);width:18px;border-radius:3px;}
+.tour-acts{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.tour-skip{background:none;border:none;color:var(--dim);font-size:12.5px;cursor:pointer;padding:6px 2px;font-family:var(--sans);}
+.tour-skip:hover{color:var(--muted);}
+.tour-btn{background:linear-gradient(160deg,var(--gold2),var(--gold));color:#1b1610;border:none;border-radius:9px;
+  padding:8px 17px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:.15s;}
+.tour-btn:hover{filter:brightness(1.06);}
+.tour-btn.ghost{background:none;color:var(--muted);border:1px solid var(--line2);}
+.tour-btn.ghost:hover{border-color:var(--gold);color:var(--ink);filter:none;}
 .modal-bg{position:fixed;inset:0;background:rgba(42,32,19,.40);backdrop-filter:blur(4px);z-index:50;
   display:flex;align-items:flex-end;justify-content:center;animation:fade .25s ease both;padding:0;}
 @media(min-width:640px){.modal-bg{align-items:center;padding:20px;}}
@@ -296,7 +319,7 @@ function MoneyList({ items, onChange, categories, valueKey = "value", accent, cu
           <div className="row" key={it.id}>
             <div className="lbl">
               {it.label}
-              {it.category && <span className="cat">{it.category}</span>}
+              {it.category && it.category !== it.label && <span className="cat">{it.category}</span>}
             </div>
             <div className="amt" style={accent ? { color: accent } : null}>{money(it[valueKey], cur)}</div>
             <span />
@@ -370,6 +393,21 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [editing, setEditing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = React.useRef(null);
+  const [tourOpen, setTourOpen] = useState(false);
+
+  // auto-open the guided tour on a visitor's first ever visit
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem(TOUR_KEY)) {
+        const id = setTimeout(() => setTourOpen(true), 650);
+        return () => clearTimeout(id);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  const closeTour = () => {
+    setTourOpen(false);
+    try { window.localStorage.setItem(TOUR_KEY, "1"); } catch { /* ignore */ }
+  };
 
   // close the "More" menu on outside click / Esc
   useEffect(() => {
@@ -689,7 +727,8 @@ export default function FinanceDashboard({ locale = "en" }) {
   const iBoosted = calc.net + calc.income * 0.1;
   const iM2 = iBoosted > 0 ? Math.ceil(iRemain / iBoosted) : null;
   const iSaved = iM1 && iM2 ? iM1 - iM2 : 0;
-  const insightVals = { stalled: calc.net <= 0, net: calc.net, rate: calc.rate, milestoneLabel: milestone.label, m1: iM1, saved: iSaved };
+  const isEmptyData = calc.income === 0 && calc.expense === 0 && calc.assets === 0 && calc.liab === 0 && data.goals.length === 0;
+  const insightVals = { empty: isEmptyData, stalled: calc.net <= 0, net: calc.net, rate: calc.rate, milestoneLabel: milestone.label, m1: iM1, saved: iSaved };
 
   const TABS = [
     { key: "overview", label: t.tabs.overview },
@@ -719,6 +758,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                 <button className="fd-toolbtn" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>{t.btnMore}</button>
                 {moreOpen && (
                   <div className="more-menu" role="menu">
+                    <button className="more-item" role="menuitem" onClick={() => { setMoreOpen(false); setTourOpen(true); }}>{t.tour.menu}</button>
                     <button className="more-item" role="menuitem" onClick={() => { update({ ...t.sample() }); setMoreOpen(false); }}>{t.btnSample}</button>
                     <button className="more-item" role="menuitem" onClick={() => { exportData(); setMoreOpen(false); }}>{t.btnExport}</button>
                     <button className="more-item" role="menuitem" onClick={() => { fileRef.current && fileRef.current.click(); setMoreOpen(false); }}>{t.btnImport}</button>
@@ -748,10 +788,10 @@ export default function FinanceDashboard({ locale = "en" }) {
         {tab === "overview" && (
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
             <div className="fd-grid cols-2">
-              <Kpi label={t.kNetWorth} value={money(calc.netWorth, cur)} tone={calc.netWorth >= 0 ? "pos" : "neg"} sub={`${t.totalAssets} ${t.short(calc.assets)}`} />
+              <Kpi label={t.kNetWorth} value={money(calc.netWorth, cur)} tone={calc.netWorth >= 0 ? "pos" : "neg"} sub={`${t.totalAssets} ${cur} ${t.short(calc.assets)}`} />
               {(() => {
                 const dr = calc.assets > 0 ? Math.round((calc.liab / calc.assets) * 100) : 0;
-                return <Kpi label={t.debtRatio} value={dr + "%"} tone={dr === 0 ? "pos" : dr <= 50 ? "" : "neg"} sub={`${t.totalDebt} ${t.short(calc.liab)}`} />;
+                return <Kpi label={t.debtRatio} value={dr + "%"} tone={dr === 0 ? "pos" : dr <= 50 ? "" : "neg"} sub={`${t.totalDebt} ${cur} ${t.short(calc.liab)}`} />;
               })()}
             </div>
 
@@ -999,7 +1039,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                 if (calc.m.expenses.length === 0 || cats.size < 2) return null;
                 return (
                   <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px dashed var(--line)" }}>
-                    <div className="kpi-l" style={{ marginBottom: 12 }}>{t.variableSpending}</div>
+                    <div className="kpi-l" style={{ marginBottom: 12 }}>{t.variableMix}</div>
                     <CategoryDonut items={calc.m.expenses} cur={cur} t={t} />
                   </div>
                 );
@@ -1019,7 +1059,7 @@ export default function FinanceDashboard({ locale = "en" }) {
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
             <div className="fd-grid cols-3">
               <Kpi label={t.invKpiTotal} value={money(calc.invest, cur)} tone="pos" />
-              <Kpi label={t.invKpiShare} value={share + "%"} sub={t.invKpiShareSub(t.short(calc.assets))} />
+              <Kpi label={t.invKpiShare} value={share + "%"} sub={t.invKpiShareSub(cur + " " + t.short(calc.assets))} />
               <Kpi label={t.invKpiTop} value={top ? topPct + "%" : t.invKpiTopNone}
                 sub={top ? top.label : undefined} tone={topPct > 60 ? "neg" : ""} />
             </div>
@@ -1049,10 +1089,13 @@ export default function FinanceDashboard({ locale = "en" }) {
         )}
       </div>
 
-      {/* floating guided-fill button */}
+      {/* floating guided-fill button (kept visible during the tour so it can be highlighted) */}
       {!chatOpen && (
         <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
       )}
+
+      {/* guided product tour (spotlight) */}
+      {tourOpen && <Tour t={t} onClose={closeTour} />}
 
       {/* guided fill modal — single fill-in-the-blank form */}
       {chatOpen && (() => {
@@ -1301,6 +1344,94 @@ function GoalAdder({ onAdd, t }) {
   );
 }
 
+/* ----------------------------- guided tour ----------------------------- */
+// Selector for each step (null = centered card with no spotlight). Text comes
+// from t.tour.steps[i], so this array must stay the same length as that list.
+const TOUR_SELECTORS = [
+  null,                 // welcome
+  ".fd-tabs",           // section tabs
+  ".fd-net",            // live net-worth figure
+  ".fab",               // guided-fill button
+  ".more-wrap",         // more menu (sample / import / export / replay tour)
+  "[data-tour='lang']", // language switcher (rendered by App.jsx)
+  null,                 // wrap-up
+];
+
+function Tour({ t, onClose }) {
+  const steps = t.tour.steps;
+  const [i, setI] = useState(0);
+  const [rect, setRect] = useState(null);
+  const last = i === steps.length - 1;
+  const next = () => { if (last) onClose(); else setI((v) => Math.min(steps.length - 1, v + 1)); };
+  const back = () => setI((v) => Math.max(0, v - 1));
+
+  // measure the highlighted element (re-measure on scroll / resize / step change)
+  useLayoutEffect(() => {
+    const sel = TOUR_SELECTORS[i];
+    const el = sel ? document.querySelector(sel) : null;
+    if (!el) { setRect(null); return; }
+    try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch { /* ignore */ }
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.top, left: r.left, width: r.width, height: r.height, bottom: r.bottom });
+    };
+    measure();
+    const id = setTimeout(measure, 360); // settle after scroll
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => { clearTimeout(id); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+  }, [i, steps.length]);
+
+  // keyboard: Esc closes, arrows navigate
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "ArrowLeft") back();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  const PAD = 8, TW = 320, TH = 188;
+  const spot = rect ? { top: rect.top - PAD, left: rect.left - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2 } : null;
+
+  let tipStyle;
+  if (!rect) {
+    tipStyle = { top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: TW };
+  } else {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const below = rect.bottom + 14 + TH <= vh;
+    const top = below ? rect.bottom + 14 : Math.max(12, rect.top - 14 - TH);
+    let left = rect.left + rect.width / 2 - TW / 2;
+    left = Math.max(12, Math.min(left, vw - TW - 12));
+    tipStyle = { top, left, width: TW };
+  }
+
+  return (
+    <div className="tour-root">
+      {spot
+        ? <div className="tour-spot" style={spot} onClick={onClose} />
+        : <div className="tour-dim" onClick={onClose} />}
+      <div className="tour-tip" style={tipStyle}>
+        <div className="tour-no">{t.tour.stepOf(i + 1, steps.length)}</div>
+        <div className="tour-t">{steps[i].title}</div>
+        <div className="tour-b">{steps[i].body}</div>
+        <div className="tour-dots">
+          {steps.map((_, k) => <span key={k} className={"tour-dot" + (k === i ? " on" : "")} />)}
+        </div>
+        <div className="tour-acts">
+          <button className="tour-skip" onClick={onClose}>{last ? "" : t.tour.skip}</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {i > 0 && <button className="tour-btn ghost" onClick={back}>{t.tour.back}</button>}
+            <button className="tour-btn" onClick={next}>{last ? t.tour.done : t.tour.next}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------- retirement ----------------------------- */
 function RetInput({ label, value, onChange, suffix, hint, placeholder }) {
   return (
@@ -1329,6 +1460,8 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
     monthlyContribution: Math.max(0, Math.round(calc.net || 0)),
     monthlySpend: Math.max(0, Math.round(calc.expense || 0)),
   });
+  // only offer "use current numbers" when there is real data to pull from
+  const hasUsableData = (calc.invest || 0) > 0 || (calc.netWorth || 0) > 0 || (calc.net || 0) > 0 || (calc.expense || 0) > 0;
 
   const m = useMemo(() => {
     // empty advanced fields fall back to sensible defaults so the basic 3 inputs
@@ -1398,7 +1531,7 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
               <div className="sec-sub">{m.yrsLeft > 0 ? t.yrsLeft(m.yrsLeft) : t.checkAge}</div>
             </div>
           </button>
-          {panelOpen && <button className="fd-toolbtn" onClick={fillNow}>{t.useCurrentNumbers}</button>}
+          {panelOpen && hasUsableData && <button className="fd-toolbtn" onClick={fillNow}>{t.useCurrentNumbers}</button>}
         </div>
         {panelOpen && (
           <>
@@ -1409,14 +1542,14 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
       </div>
 
       {!m.valid ? (
-        <div className="insight">{t.retStartInsight()}</div>
+        <div className="insight">{t.retStartInsight(hasUsableData)}</div>
       ) : (
         <>
           <div className="fd-grid cols-4">
             <Kpi label={t.kProjected} value={money(m.projAtRetire, cur)} />
             <Kpi label={t.kNeeded} value={money(m.needAtRetire, cur)} sub={t.neededSub} />
             <Kpi label={m.gap >= 0 ? t.kSurplus : t.kShortfall} value={money(Math.abs(m.gap), cur)} tone={m.gap >= 0 ? "pos" : "neg"} />
-            <Kpi label={t.kFreedom} value={m.fiAge ? m.fiAge + " " + t.ageSuffixKpi : t.freedomAdjust} tone={m.fiAge && m.fiAge <= m.rage ? "pos" : ""} sub={m.fiAge ? t.freedomBy(m.fiAge) : t.freedomNotReached} />
+            <Kpi label={t.kFreedom} value={m.fiAge ? t.freedomAgeVal(m.fiAge) : t.freedomAdjust} tone={m.fiAge && m.fiAge <= m.rage ? "pos" : ""} sub={m.fiAge ? t.freedomAhead(m.rage - m.fiAge) : t.freedomNotReached} />
           </div>
 
           <div className="card glow">

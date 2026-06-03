@@ -43,7 +43,7 @@ export default function App() {
       <FinanceDashboard locale={lang} key={lang} />
 
       {/* language dropdown (bottom-left) */}
-      <div ref={ref} style={styles.wrap}>
+      <div ref={ref} data-tour="lang" style={styles.wrap}>
         <button
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="listbox"

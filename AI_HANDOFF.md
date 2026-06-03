@@ -90,7 +90,19 @@ Bottom-right ✦ FAB opens a step-by-step Q&A modal driven by `QUESTIONS` (in i1
 Each question has a `target` describing where the answer is written (e.g.
 `{ type: "recurring_expense", category: cats.expense[0] }`, `{ type: "asset", assetType: cats.asset[1] }`,
 `{ type: "retire", key: "currentAge" }`). The apply logic is in `FinanceDashboard.jsx`
-(search `tg.type ===`). A previous **voice-assistant** feature was fully removed.
+(search `tg.type ===`). A previous conversational **voice-assistant** feature was fully removed,
+but two lighter voice features remain: (1) the guided-fill **🎤 mic** (Web Speech
+`SpeechRecognition`) that fills the highlighted blank from spoken numbers, and (2) the header
+**🔊 Voice recap** (Web Speech `speechSynthesis`) that reads the financial story aloud. Both
+degrade gracefully (no-op / alert) on browsers without Web Speech support.
+
+### 5b. Guided product tour (導覽)
+
+Spotlight onboarding tour in `FinanceDashboard.jsx` (`Tour` component + `TOUR_SELECTORS`).
+7 steps highlight chrome elements by CSS selector (`.fd-tabs`, `.fd-net`, `.fab`, `.more-wrap`,
+`[data-tour='lang']` — the last lives in `App.jsx`). Auto-opens once on first visit
+(localStorage `finance:tour:v1`), and is replayable from **⋯ More → Replay tour**. All copy is
+in each locale's `t.tour` ({ menu, next, back, skip, done, stepOf, steps[] }).
 
 ---
 

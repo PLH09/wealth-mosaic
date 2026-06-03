@@ -277,6 +277,19 @@ export const STRINGS = {
     loading: "Loading…",
     speechUnsupported: "This browser doesn't support speech playback. Try Chrome or Safari.",
     tabs: { overview: "Overview", cashflow: "Cash Flow", invest: "Investments", retire: "Retirement" },
+    tour: {
+      menu: "Replay tour", next: "Next", back: "Back", skip: "Skip", done: "Got it",
+      stepOf: (a, b) => `Step ${a} of ${b}`,
+      steps: [
+        { title: "Welcome to your finance dashboard", body: "A 30-second tour of the essentials. Everything stays on your device — nothing is uploaded." },
+        { title: "Four focused sections", body: "Switch between Overview, Cash Flow, Investments and Retirement here. Each gives a clear, plain-language read on your money." },
+        { title: "Your live net worth", body: "This figure updates instantly as you edit your assets and debts, so you always know where you stand." },
+        { title: "Fill in your numbers fast", body: "Tap the ✦ button to answer a few simple questions and your dashboard fills itself in — no spreadsheets needed." },
+        { title: "Sample data & more", body: "Open this menu to load sample data, import or export a backup, clear everything, or replay this tour anytime." },
+        { title: "Five languages", body: "Switch the interface between English, 繁體中文, 简体中文, 日本語 and 한국어 whenever you like." },
+        { title: "You're all set", body: "Explore freely — your data is saved automatically in this browser. Enjoy taking charge of your finances!" },
+      ],
+    },
     tabIntro: {
       overview: "A snapshot of your whole financial picture in one place.",
       cashflow: "How much comes in vs. goes out each month — your saving power.",
@@ -298,20 +311,20 @@ export const STRINGS = {
     savingsRateSub: (m) => `${m} · Share of income you keep after spending`,
     secIncomeFlow: "Where your income goes", incomeFlowSub: "How this month's income splits across spending and savings",
     flowDeficit: "Deficit",
-    secExpenseMix: "Spending breakdown", expenseMixSub: "Your spending grouped by category",
+    secExpenseMix: "Spending breakdown", expenseMixSub: "All spending (recurring + variable), grouped by category",
     monthLabel: "Month",
     totalIncome: "Total income", totalSpending: "Total spending", monthlySurplus: "Monthly surplus",
     secRecurring: "Recurring Items", recurringSub: "Set once, auto-applied every month",
     recurringIncome: "Recurring income", recurringExpenses: "Recurring expenses",
     secThisMonth: (m) => `This Month · ${m}`, thisMonthSub: "One-off income/spending for this month",
-    extraIncome: "Extra income", variableSpending: "Variable spending",
+    extraIncome: "Extra income", variableSpending: "Variable spending", variableMix: "Variable spending mix",
     totalAssets: "Total Assets", totalDebt: "Total Debt",
     secAssets: "Assets", secLiabilities: "Liabilities",
     secAllocation: "Allocation", secHoldings: "Holdings",
     invKpiTotal: "Total invested", invKpiShare: "Share of assets", invKpiShareSub: (a) => `of ${a} total assets`,
     invKpiTop: "Largest holding", invKpiTopNone: "—",
     topSpendInsight: (cat, pct) => `Your biggest spending category is “${cat}”, at ${pct}% of total spending.`,
-    secFinancialGoals: "Financial Goals", goalsSub: "ETA estimated from your monthly surplus",
+    secFinancialGoals: "Financial Goals", goalsSub: "ETA assumes your full monthly surplus goes to that one goal",
     goalReached: "Reached ✦",
     goalEta: (months, eta) => `~${months} mo · by ${eta}`,
     goalNoSurplus: "No surplus this month",
@@ -322,10 +335,12 @@ export const STRINGS = {
     allocEmpty: "Add holdings on the right to see the allocation",
     goalName: "Goal name", goalTargetPH: "Target amount", goalSavedPH: "Saved so far", addGoal: "Add goal",
     defaultMilestone: { label: "First $100K", target: 100000 },
-    insight: (v, H) => v.stalled ? (
+    insight: (v, H) => v.empty ? (
+      <>Nothing here yet. Tap {b("✦ Guided fill")} to answer a few quick questions, or open {b("⋯ More → Load sample")} to explore with example numbers. Your data stays in this browser.</>
+    ) : v.stalled ? (
       <>Your spending is at or above your income, so the wealth engine has stalled. Start by cutting one or two {b("recurring expenses")} — that keeps saving you money every month.</>
     ) : (
-      <>At your current surplus of {b(H.money(v.net, H.cur))}/mo (a {b(v.rate.toFixed(0) + "%")} savings rate), "{v.milestoneLabel}" is about {b(v.m1 + " months")} away.{v.saved > 0 && <> Push your savings rate up another 10% and you’d get there {b(v.saved + " months sooner")} — that’s the power of the savings rate.</>}</>
+      <>At your current surplus of {b(H.money(v.net, H.cur))}/mo (a {b(v.rate.toFixed(0) + "%")} savings rate), "{v.milestoneLabel}" is about {b(v.m1 === 1 ? "1 month" : v.m1 + " months")} away.{v.saved > 0 && <> Push your savings rate up another 10% and you’d get there {b(v.saved === 1 ? "1 month sooner" : v.saved + " months sooner")} — that’s the power of the savings rate.</>}</>
     ),
     guidedTitle: "Guided fill",
     qDone: "Done!",
@@ -359,7 +374,7 @@ export const STRINGS = {
     checkAge: "Check your age inputs",
     useCurrentNumbers: "Use current numbers",
     retNote: "Compound growth uses your annual return; the amount needed is derived from the safe withdrawal rate (the 4% rule), with monthly spending inflated to your retirement year. These are planning assumptions, not investment advice.",
-    retStartInsight: () => <>Fill in {b("age")}, {b("retirement age")} and {b("monthly spending in retirement")} to begin — or tap "Use current numbers" at the top right for a quick estimate from your existing data.</>,
+    retStartInsight: (hasData) => <>Fill in {b("age")}, {b("retirement age")} and {b("monthly spending in retirement")} to begin.{hasData && <> Or tap {b("Use current numbers")} at the top right for a quick estimate from your existing data.</>}</>,
     retFields: (cur) => [
       { k: "currentAge", label: "Current age", suffix: "yrs" },
       { k: "retireAge", label: "Target retire age", suffix: "yrs" },
@@ -376,7 +391,7 @@ export const STRINGS = {
     kProjected: "Projected at retirement", kNeeded: "Needed to retire", neededSub: "4% rule + inflation",
     kSurplus: "Surplus", kShortfall: "Shortfall",
     kFreedom: "Financial freedom", freedomAdjust: "Adjust",
-    freedomBy: (age) => `by age ${age}`, freedomNotReached: "not reached by retirement",
+    freedomAgeVal: (age) => `Age ${age}`, freedomAhead: (yrs) => yrs > 0 ? `${yrs} yrs before target` : "right on target", freedomNotReached: "not reached by retirement",
     ageSuffixKpi: "yrs",
     secAssetsVsNeeded: "Assets vs Amount needed", crossover: "Where the lines cross = financial freedom",
     projectedName: "Projected assets", neededName: "Amount needed",
@@ -422,7 +437,7 @@ export const STRINGS = {
       netWorthHistory: (() => { const h = {}; const base = 28000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 1400 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 400)); } return h; })(),
       portfolio: [
         { id: uid(), label: "VOO S&P 500", value: 7000, category: "ETF" },
-        { id: uid(), label: "Apple", value: 5300, category: "US Stocks" },
+        { id: uid(), label: "Apple", value: 5000, category: "US Stocks" },
         { id: uid(), label: "VXUS", value: 3000, category: "ETF" },
         { id: uid(), label: "Bitcoin", value: 2000, category: "Crypto" },
       ],
@@ -501,6 +516,19 @@ export const STRINGS = {
     loading: "載入中…",
     speechUnsupported: "這個瀏覽器不支援語音朗讀,建議改用 Chrome 或 Safari。",
     tabs: { overview: "總覽", cashflow: "現金流", invest: "投資", retire: "退休" },
+    tour: {
+      menu: "重看導覽", next: "下一步", back: "上一步", skip: "略過", done: "開始使用",
+      stepOf: (a, b) => `第 ${a} / ${b} 步`,
+      steps: [
+        { title: "歡迎使用你的財務儀表板", body: "30 秒快速導覽重點功能。所有資料只留在你的裝置上,不會上傳。" },
+        { title: "四個重點分頁", body: "在這裡切換總覽、現金流、投資與退休。每個分頁都用白話幫你看懂自己的財務狀況。" },
+        { title: "即時淨值", body: "當你編輯資產與負債時,這個數字會立即更新,讓你隨時掌握現況。" },
+        { title: "快速填入你的數字", body: "點這顆 ✦ 按鈕回答幾個簡單問題,儀表板就會自動幫你填好,不必碰試算表。" },
+        { title: "範例資料與更多功能", body: "打開這個選單可載入範例資料、匯入或匯出備份、清除全部,或隨時重看本導覽。" },
+        { title: "五種語言", body: "隨時可把介面切換成 English、繁體中文、简体中文、日本語 或 한국어。" },
+        { title: "一切就緒", body: "盡情探索吧 —— 你的資料會自動存在這個瀏覽器裡。祝你掌握理財、輕鬆自在!" },
+      ],
+    },
     tabIntro: {
       overview: "一頁看懂你的整體財務狀況。",
       cashflow: "每月收入減去支出,看你能存下多少。",
@@ -522,20 +550,20 @@ export const STRINGS = {
     savingsRateSub: (m) => `${m} · 收入扣掉支出後存下的比例`,
     secIncomeFlow: "收入流向", incomeFlowSub: "這個月的收入,分別流向支出與儲蓄",
     flowDeficit: "透支",
-    secExpenseMix: "支出分布", expenseMixSub: "把所有支出依分類看錢花在哪",
+    secExpenseMix: "支出分布", expenseMixSub: "固定＋變動的全部支出,依分類看錢花在哪",
     monthLabel: "月份",
     totalIncome: "總收入", totalSpending: "總支出", monthlySurplus: "本月結餘",
     secRecurring: "固定項目", recurringSub: "設定一次,每月自動帶入",
     recurringIncome: "固定收入", recurringExpenses: "固定支出",
     secThisMonth: (m) => `本月變動 · ${m}`, thisMonthSub: "這個月才有的收支",
-    extraIncome: "額外收入", variableSpending: "變動支出",
+    extraIncome: "額外收入", variableSpending: "變動支出", variableMix: "變動支出占比",
     totalAssets: "總資產", totalDebt: "總負債",
     secAssets: "資產", secLiabilities: "負債",
     secAllocation: "資產配置", secHoldings: "持倉",
     invKpiTotal: "總投資額", invKpiShare: "佔總資產", invKpiShareSub: (a) => `總資產 ${a}`,
     invKpiTop: "最大持股", invKpiTopNone: "—",
     topSpendInsight: (cat, pct) => `你最大的支出類別是「${cat}」,佔總支出 ${pct}%。`,
-    secFinancialGoals: "財務目標", goalsSub: "依本月結餘自動估算達成時間",
+    secFinancialGoals: "財務目標", goalsSub: "達成時間假設每月結餘全部投入該目標",
     goalReached: "已達成 ✦",
     goalEta: (months, eta) => `約 ${months} 個月 · ${eta}達成`,
     goalNoSurplus: "本月無結餘",
@@ -546,7 +574,9 @@ export const STRINGS = {
     allocEmpty: "在右側新增持倉就會出現配置圖",
     goalName: "目標名稱", goalTargetPH: "目標金額", goalSavedPH: "已存金額", addGoal: "新增目標",
     defaultMilestone: { label: "第一桶金", target: 1000000 },
-    insight: (v, H) => v.stalled ? (
+    insight: (v, H) => v.empty ? (
+      <>目前還沒有資料。點 {b("✦ 引導填寫")} 回答幾個簡單問題,或從 {b("⋯ 更多 → 載入範例")} 用示範數字先逛逛。你的資料只會留在這個瀏覽器。</>
+    ) : v.stalled ? (
       <>本月支出大於或等於收入,財富累積的引擎停住了。先從砍掉一兩項{b("固定支出")}開始 —— 那會每個月持續幫你存下錢。</>
     ) : (
       <>以目前每月結餘 {b(H.money(v.net, H.cur))}(儲蓄率 {b(v.rate.toFixed(0) + "%")}),距離「{v.milestoneLabel}」還需要約 {b(v.m1 + " 個月")}。{v.saved > 0 && <> 若把儲蓄率再拉高 10%,可以{b("提早 " + v.saved + " 個月")}達標 —— 這就是儲蓄率的威力。</>}</>
@@ -583,7 +613,7 @@ export const STRINGS = {
     checkAge: "請確認年齡設定",
     useCurrentNumbers: "帶入目前數字",
     retNote: "用「年化報酬率」估算複利成長,用「安全提領率」(4% 法則)反推退休需要的金額,並把月支出按通膨膨脹到退休那年。這些是規劃假設,不是投資建議。",
-    retStartInsight: () => <>填好{b("年齡")}、{b("退休年齡")}與{b("退休後月支出")}就會開始計算 —— 也可以直接按右上角「帶入目前數字」,用儀表板現有的資料快速試算。</>,
+    retStartInsight: (hasData) => <>填好{b("年齡")}、{b("退休年齡")}與{b("退休後月支出")}就會開始計算。{hasData && <> 也可以直接按右上角{b("帶入目前數字")},用儀表板現有的資料快速試算。</>}</>,
     retFields: (cur) => [
       { k: "currentAge", label: "目前年齡", suffix: "歲" },
       { k: "retireAge", label: "預計退休年齡", suffix: "歲" },
@@ -600,7 +630,7 @@ export const STRINGS = {
     kProjected: "退休時預計資產", kNeeded: "退休所需資產", neededSub: "4% 法則 + 通膨",
     kSurplus: "超前", kShortfall: "缺口",
     kFreedom: "預估財務自由", freedomAdjust: "需調整",
-    freedomBy: (age) => `${age}歲達標`, freedomNotReached: "退休前未達標",
+    freedomAgeVal: (age) => `${age} 歲`, freedomAhead: (yrs) => yrs > 0 ? `比目標早 ${yrs} 年` : "正好在目標年齡", freedomNotReached: "退休前未達標",
     ageSuffixKpi: "歲",
     secAssetsVsNeeded: "資產 vs 所需金額", crossover: "兩線交會 = 財務自由",
     projectedName: "累積資產", neededName: "所需金額",
@@ -725,6 +755,19 @@ export const STRINGS = {
     loading: "载入中…",
     speechUnsupported: "这个浏览器不支持语音朗读,建议改用 Chrome 或 Safari。",
     tabs: { overview: "总览", cashflow: "现金流", invest: "投资", retire: "退休" },
+    tour: {
+      menu: "重看导览", next: "下一步", back: "上一步", skip: "跳过", done: "开始使用",
+      stepOf: (a, b) => `第 ${a} / ${b} 步`,
+      steps: [
+        { title: "欢迎使用你的财务仪表板", body: "30 秒快速导览重点功能。所有数据只留在你的设备上,不会上传。" },
+        { title: "四个重点分页", body: "在这里切换总览、现金流、投资与退休。每个分页都用大白话帮你看懂自己的财务状况。" },
+        { title: "实时净值", body: "当你编辑资产与负债时,这个数字会立即更新,让你随时掌握现状。" },
+        { title: "快速填入你的数字", body: "点这颗 ✦ 按钮回答几个简单问题,仪表板就会自动帮你填好,不必碰电子表格。" },
+        { title: "示例数据与更多功能", body: "打开这个菜单可载入示例数据、导入或导出备份、清除全部,或随时重看本导览。" },
+        { title: "五种语言", body: "随时可把界面切换成 English、繁體中文、简体中文、日本語 或 한국어。" },
+        { title: "一切就绪", body: "尽情探索吧 —— 你的数据会自动存在这个浏览器里。祝你轻松掌握理财!" },
+      ],
+    },
     tabIntro: {
       overview: "一页看懂你的整体财务状况。",
       cashflow: "每月收入减去支出,看你能存下多少。",
@@ -746,20 +789,20 @@ export const STRINGS = {
     savingsRateSub: (m) => `${m} · 收入扣掉支出后存下的比例`,
     secIncomeFlow: "收入流向", incomeFlowSub: "这个月的收入,分别流向支出与储蓄",
     flowDeficit: "透支",
-    secExpenseMix: "支出分布", expenseMixSub: "把所有支出依分类看钱花在哪",
+    secExpenseMix: "支出分布", expenseMixSub: "固定＋变动的全部支出,按分类看钱花在哪",
     monthLabel: "月份",
     totalIncome: "总收入", totalSpending: "总支出", monthlySurplus: "本月结余",
     secRecurring: "固定项目", recurringSub: "设定一次,每月自动带入",
     recurringIncome: "固定收入", recurringExpenses: "固定支出",
     secThisMonth: (m) => `本月变动 · ${m}`, thisMonthSub: "这个月才有的收支",
-    extraIncome: "额外收入", variableSpending: "变动支出",
+    extraIncome: "额外收入", variableSpending: "变动支出", variableMix: "变动支出占比",
     totalAssets: "总资产", totalDebt: "总负债",
     secAssets: "资产", secLiabilities: "负债",
     secAllocation: "资产配置", secHoldings: "持仓",
     invKpiTotal: "总投资额", invKpiShare: "占总资产", invKpiShareSub: (a) => `总资产 ${a}`,
     invKpiTop: "最大持股", invKpiTopNone: "—",
     topSpendInsight: (cat, pct) => `你最大的支出类别是「${cat}」,占总支出 ${pct}%。`,
-    secFinancialGoals: "财务目标", goalsSub: "依本月结余自动估算达成时间",
+    secFinancialGoals: "财务目标", goalsSub: "达成时间假设每月结余全部投入该目标",
     goalReached: "已达成 ✦",
     goalEta: (months, eta) => `约 ${months} 个月 · ${eta}达成`,
     goalNoSurplus: "本月无结余",
@@ -770,7 +813,9 @@ export const STRINGS = {
     allocEmpty: "在右侧新增持仓就会出现配置图",
     goalName: "目标名称", goalTargetPH: "目标金额", goalSavedPH: "已存金额", addGoal: "新增目标",
     defaultMilestone: { label: "第一桶金", target: 1000000 },
-    insight: (v, H) => v.stalled ? (
+    insight: (v, H) => v.empty ? (
+      <>目前还没有数据。点 {b("✦ 引导填写")} 回答几个简单问题,或从 {b("⋯ 更多 → 载入示例")} 用示范数字先逛逛。你的数据只会留在这个浏览器。</>
+    ) : v.stalled ? (
       <>本月支出大于或等于收入,财富累积的引擎停住了。先从砍掉一两项{b("固定支出")}开始 —— 那会每个月持续帮你存下钱。</>
     ) : (
       <>以目前每月结余 {b(H.money(v.net, H.cur))}(储蓄率 {b(v.rate.toFixed(0) + "%")}),距离「{v.milestoneLabel}」还需要约 {b(v.m1 + " 个月")}。{v.saved > 0 && <> 若把储蓄率再拉高 10%,可以{b("提早 " + v.saved + " 个月")}达标 —— 这就是储蓄率的威力。</>}</>
@@ -807,7 +852,7 @@ export const STRINGS = {
     checkAge: "请确认年龄设定",
     useCurrentNumbers: "带入目前数字",
     retNote: "用「年化收益率」估算复利成长,用「安全提取率」(4% 法则)反推退休需要的金额,并把月支出按通胀膨胀到退休那年。这些是规划假设,不是投资建议。",
-    retStartInsight: () => <>填好{b("年龄")}、{b("退休年龄")}与{b("退休后月支出")}就会开始计算 —— 也可以直接按右上角「带入目前数字」,用仪表板现有的数据快速试算。</>,
+    retStartInsight: (hasData) => <>填好{b("年龄")}、{b("退休年龄")}与{b("退休后月支出")}就会开始计算。{hasData && <> 也可以直接按右上角{b("带入目前数字")},用仪表板现有的数据快速试算。</>}</>,
     retFields: (cur) => [
       { k: "currentAge", label: "目前年龄", suffix: "岁" },
       { k: "retireAge", label: "预计退休年龄", suffix: "岁" },
@@ -824,7 +869,7 @@ export const STRINGS = {
     kProjected: "退休时预计资产", kNeeded: "退休所需资产", neededSub: "4% 法则 + 通胀",
     kSurplus: "超前", kShortfall: "缺口",
     kFreedom: "预估财务自由", freedomAdjust: "需调整",
-    freedomBy: (age) => `${age}岁达标`, freedomNotReached: "退休前未达标",
+    freedomAgeVal: (age) => `${age} 岁`, freedomAhead: (yrs) => yrs > 0 ? `比目标早 ${yrs} 年` : "正好在目标年龄", freedomNotReached: "退休前未达标",
     ageSuffixKpi: "岁",
     secAssetsVsNeeded: "资产 vs 所需金额", crossover: "两线交会 = 财务自由",
     projectedName: "累积资产", neededName: "所需金额",
@@ -949,6 +994,19 @@ export const STRINGS = {
     loading: "読み込み中…",
     speechUnsupported: "このブラウザは音声読み上げに対応していません。Chrome か Safari をお試しください。",
     tabs: { overview: "概要", cashflow: "収支", invest: "投資", retire: "退職" },
+    tour: {
+      menu: "ツアーを再生", next: "次へ", back: "戻る", skip: "スキップ", done: "はじめる",
+      stepOf: (a, b) => `${a} / ${b}`,
+      steps: [
+        { title: "ファイナンスダッシュボードへようこそ", body: "30秒で要点をご案内します。データはすべて端末内に保存され、アップロードされません。" },
+        { title: "4つのセクション", body: "ここで概要・収支・投資・退職を切り替えます。それぞれが分かりやすい言葉でお金の状況を示します。" },
+        { title: "リアルタイムの純資産", body: "資産と負債を編集すると、この数字が即座に更新され、いつでも現状を把握できます。" },
+        { title: "数字をすばやく入力", body: "✦ ボタンを押していくつかの質問に答えるだけで、ダッシュボードが自動で入力されます。" },
+        { title: "サンプルデータとその他", body: "このメニューからサンプル読み込み、バックアップの入出力、全消去、ツアーの再生ができます。" },
+        { title: "5つの言語", body: "English・繁體中文・简体中文・日本語・한국어 にいつでも切り替えられます。" },
+        { title: "準備完了", body: "自由に操作してください。データはこのブラウザに自動保存されます。お金の管理を楽しんで！" },
+      ],
+    },
     tabIntro: {
       overview: "あなたの財務全体を一目で確認できます。",
       cashflow: "毎月の収入から支出を引いて、貯蓄できる力を見ます。",
@@ -970,20 +1028,20 @@ export const STRINGS = {
     savingsRateSub: (m) => `${m} · 収入から支出を引いて残る割合`,
     secIncomeFlow: "収入の流れ", incomeFlowSub: "今月の収入が支出と貯蓄にどう分かれるか",
     flowDeficit: "赤字",
-    secExpenseMix: "支出の内訳", expenseMixSub: "すべての支出をカテゴリ別に表示",
+    secExpenseMix: "支出の内訳", expenseMixSub: "固定＋変動のすべての支出をカテゴリ別に表示",
     monthLabel: "月",
     totalIncome: "総収入", totalSpending: "総支出", monthlySurplus: "今月の収支",
     secRecurring: "固定項目", recurringSub: "一度設定すれば毎月自動反映",
     recurringIncome: "固定収入", recurringExpenses: "固定支出",
     secThisMonth: (m) => `今月の変動 · ${m}`, thisMonthSub: "今月だけの収支",
-    extraIncome: "臨時収入", variableSpending: "変動支出",
+    extraIncome: "臨時収入", variableSpending: "変動支出", variableMix: "変動支出の割合",
     totalAssets: "総資産", totalDebt: "総負債",
     secAssets: "資産", secLiabilities: "負債",
     secAllocation: "資産配分", secHoldings: "保有銘柄",
     invKpiTotal: "投資総額", invKpiShare: "総資産に占める割合", invKpiShareSub: (a) => `総資産 ${a}`,
     invKpiTop: "最大の保有", invKpiTopNone: "—",
     topSpendInsight: (cat, pct) => `最大の支出カテゴリは「${cat}」で、総支出の ${pct}% です。`,
-    secFinancialGoals: "資産目標", goalsSub: "今月の収支から達成時期を自動試算",
+    secFinancialGoals: "資産目標", goalsSub: "達成時期は毎月の収支をすべてその目標に充てた場合の試算",
     goalReached: "達成 ✦",
     goalEta: (months, eta) => `約 ${months} か月 · ${eta}達成`,
     goalNoSurplus: "今月は収支なし",
@@ -994,7 +1052,9 @@ export const STRINGS = {
     allocEmpty: "右側に保有銘柄を追加すると配分が表示されます",
     goalName: "目標名", goalTargetPH: "目標金額", goalSavedPH: "現在の額", addGoal: "目標を追加",
     defaultMilestone: { label: "最初の1000万", target: 10000000 },
-    insight: (v, H) => v.stalled ? (
+    insight: (v, H) => v.empty ? (
+      <>まだデータがありません。{b("✦ ガイド入力")} でいくつかの質問に答えるか、{b("⋯ その他 → サンプル読み込み")} で例の数字を試してみましょう。データはこのブラウザ内に保存されます。</>
+    ) : v.stalled ? (
       <>今月は支出が収入以上で、資産形成のエンジンが止まっています。まずは{b("固定支出")}を1〜2件減らすことから —— それが毎月の貯蓄につながります。</>
     ) : (
       <>現在の月間収支 {b(H.money(v.net, H.cur))}(貯蓄率 {b(v.rate.toFixed(0) + "%")})なら、「{v.milestoneLabel}」まで約 {b(v.m1 + " か月")}です。{v.saved > 0 && <> 貯蓄率をさらに10%上げれば{b(v.saved + " か月早く")}達成できます —— これが貯蓄率の力です。</>}</>
@@ -1031,7 +1091,7 @@ export const STRINGS = {
     checkAge: "年齢の入力をご確認ください",
     useCurrentNumbers: "現在の数字を使う",
     retNote: "「年率リターン」で複利成長を試算し、「安全引出率」(4%ルール)から必要額を逆算、月支出は退職年までインフレを反映します。これらは計画上の前提であり、投資助言ではありません。",
-    retStartInsight: () => <>{b("年齢")}・{b("退職年齢")}・{b("退職後の月支出")}を入力すると計算が始まります —— 右上の「現在の数字を使う」で、既存データから素早く試算することもできます。</>,
+    retStartInsight: (hasData) => <>{b("年齢")}・{b("退職年齢")}・{b("退職後の月支出")}を入力すると計算が始まります。{hasData && <> 右上の{b("現在の数字を使う")}で、既存データから素早く試算することもできます。</>}</>,
     retFields: (cur) => [
       { k: "currentAge", label: "現在の年齢", suffix: "歳" },
       { k: "retireAge", label: "退職予定年齢", suffix: "歳" },
@@ -1048,7 +1108,7 @@ export const STRINGS = {
     kProjected: "退職時の予想資産", kNeeded: "退職に必要な額", neededSub: "4%ルール + インフレ",
     kSurplus: "余裕", kShortfall: "不足",
     kFreedom: "経済的自由の予想", freedomAdjust: "要調整",
-    freedomBy: (age) => `${age}歳で達成`, freedomNotReached: "退職までに未達成",
+    freedomAgeVal: (age) => `${age} 歳`, freedomAhead: (yrs) => yrs > 0 ? `目標より ${yrs} 年早い` : "目標年齢ちょうど", freedomNotReached: "退職までに未達成",
     ageSuffixKpi: "歳",
     secAssetsVsNeeded: "資産 vs 必要額", crossover: "2本の線が交わる点 = 経済的自由",
     projectedName: "予想資産", neededName: "必要額",
@@ -1094,7 +1154,7 @@ export const STRINGS = {
       netWorthHistory: (() => { const h = {}; const base = 3000000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 140000 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 45000)); } return h; })(),
       portfolio: [
         { id: uid(), label: "eMAXIS Slim 米国株", value: 1000000, category: "ETF" },
-        { id: uid(), label: "トヨタ", value: 800000, category: "日本株" },
+        { id: uid(), label: "トヨタ", value: 700000, category: "日本株" },
         { id: uid(), label: "S&P500", value: 600000, category: "米国株" },
         { id: uid(), label: "ビットコイン", value: 300000, category: "暗号資産" },
       ],
@@ -1173,6 +1233,19 @@ export const STRINGS = {
     loading: "불러오는 중…",
     speechUnsupported: "이 브라우저는 음성 읽기를 지원하지 않습니다. Chrome 또는 Safari를 사용해 보세요.",
     tabs: { overview: "개요", cashflow: "현금 흐름", invest: "투자", retire: "은퇴" },
+    tour: {
+      menu: "둘러보기 다시 보기", next: "다음", back: "이전", skip: "건너뛰기", done: "시작하기",
+      stepOf: (a, b) => `${a} / ${b}`,
+      steps: [
+        { title: "금융 대시보드에 오신 것을 환영합니다", body: "30초 동안 핵심 기능을 안내합니다. 모든 데이터는 기기에만 저장되며 업로드되지 않습니다." },
+        { title: "네 가지 핵심 탭", body: "여기에서 개요·현금 흐름·투자·은퇴를 전환합니다. 각 탭이 쉬운 말로 자산 상황을 보여줍니다." },
+        { title: "실시간 순자산", body: "자산과 부채를 수정하면 이 숫자가 즉시 갱신되어 언제든 현재 상태를 알 수 있습니다." },
+        { title: "숫자를 빠르게 입력", body: "✦ 버튼을 눌러 몇 가지 간단한 질문에 답하면 대시보드가 자동으로 채워집니다." },
+        { title: "샘플 데이터와 그 외 기능", body: "이 메뉴에서 샘플 불러오기, 백업 가져오기·내보내기, 전체 삭제, 둘러보기 다시 보기를 할 수 있습니다." },
+        { title: "다섯 가지 언어", body: "English·繁體中文·简体中文·日本語·한국어 로 언제든지 전환할 수 있습니다." },
+        { title: "준비 완료", body: "자유롭게 둘러보세요. 데이터는 이 브라우저에 자동 저장됩니다. 즐겁게 자산을 관리하세요!" },
+      ],
+    },
     tabIntro: {
       overview: "당신의 전체 재무 상황을 한눈에 봅니다.",
       cashflow: "매달 수입에서 지출을 빼서 저축 여력을 봅니다.",
@@ -1194,20 +1267,20 @@ export const STRINGS = {
     savingsRateSub: (m) => `${m} · 수입에서 지출을 뺀 후 남기는 비율`,
     secIncomeFlow: "수입의 흐름", incomeFlowSub: "이번 달 수입이 지출과 저축으로 나뉘는 비율",
     flowDeficit: "적자",
-    secExpenseMix: "지출 분포", expenseMixSub: "모든 지출을 카테고리별로 표시",
+    secExpenseMix: "지출 분포", expenseMixSub: "고정＋변동 전체 지출을 카테고리별로 표시",
     monthLabel: "월",
     totalIncome: "총수입", totalSpending: "총지출", monthlySurplus: "이번 달 잔여",
     secRecurring: "고정 항목", recurringSub: "한 번 설정하면 매월 자동 반영",
     recurringIncome: "고정 수입", recurringExpenses: "고정 지출",
     secThisMonth: (m) => `이번 달 변동 · ${m}`, thisMonthSub: "이번 달에만 있는 수입/지출",
-    extraIncome: "추가 수입", variableSpending: "변동 지출",
+    extraIncome: "추가 수입", variableSpending: "변동 지출", variableMix: "변동 지출 비중",
     totalAssets: "총자산", totalDebt: "총부채",
     secAssets: "자산", secLiabilities: "부채",
     secAllocation: "자산 배분", secHoldings: "보유 종목",
     invKpiTotal: "총 투자액", invKpiShare: "총자산 대비 비중", invKpiShareSub: (a) => `총자산 ${a}`,
     invKpiTop: "최대 보유", invKpiTopNone: "—",
     topSpendInsight: (cat, pct) => `가장 큰 지출 카테고리는 「${cat}」로, 전체 지출의 ${pct}%입니다.`,
-    secFinancialGoals: "재무 목표", goalsSub: "이번 달 잔여로 달성 시점 자동 추정",
+    secFinancialGoals: "재무 목표", goalsSub: "달성 시점은 매월 잔여를 모두 해당 목표에 넣는다고 가정",
     goalReached: "달성 ✦",
     goalEta: (months, eta) => `약 ${months}개월 · ${eta} 달성`,
     goalNoSurplus: "이번 달 잔여 없음",
@@ -1218,7 +1291,9 @@ export const STRINGS = {
     allocEmpty: "오른쪽에 보유 종목을 추가하면 배분이 표시됩니다",
     goalName: "목표 이름", goalTargetPH: "목표 금액", goalSavedPH: "현재 모은 금액", addGoal: "목표 추가",
     defaultMilestone: { label: "첫 1억", target: 100000000 },
-    insight: (v, H) => v.stalled ? (
+    insight: (v, H) => v.empty ? (
+      <>아직 데이터가 없습니다. {b("✦ 가이드 입력")} 으로 몇 가지 질문에 답하거나, {b("⋯ 더 보기 → 샘플 불러오기")} 로 예시 숫자를 둘러보세요. 데이터는 이 브라우저에만 저장됩니다.</>
+    ) : v.stalled ? (
       <>이번 달은 지출이 수입 이상이라 자산 형성 엔진이 멈췄습니다. 우선 {b("고정 지출")} 한두 개를 줄이는 것부터 —— 매달 꾸준히 저축에 도움이 됩니다.</>
     ) : (
       <>현재 월 잔여 {b(H.money(v.net, H.cur))}(저축률 {b(v.rate.toFixed(0) + "%")})이면 "{v.milestoneLabel}"까지 약 {b(v.m1 + "개월")} 남았습니다.{v.saved > 0 && <> 저축률을 10% 더 올리면 {b(v.saved + "개월 빨리")} 도달합니다 —— 이것이 저축률의 힘입니다.</>}</>
@@ -1255,7 +1330,7 @@ export const STRINGS = {
     checkAge: "나이 입력을 확인하세요",
     useCurrentNumbers: "현재 숫자 가져오기",
     retNote: "「연 수익률」로 복리 성장을 추정하고, 「안전 인출률」(4% 규칙)로 필요 금액을 역산하며, 월 지출은 은퇴 시점까지 인플레이션을 반영합니다. 이는 계획 가정이며 투자 조언이 아닙니다.",
-    retStartInsight: () => <>{b("나이")}, {b("은퇴 나이")}, {b("은퇴 후 월 지출")}을 입력하면 계산이 시작됩니다 —— 오른쪽 위 「현재 숫자 가져오기」로 기존 데이터에서 빠르게 추정할 수도 있습니다.</>,
+    retStartInsight: (hasData) => <>{b("나이")}, {b("은퇴 나이")}, {b("은퇴 후 월 지출")}을 입력하면 계산이 시작됩니다.{hasData && <> 오른쪽 위 {b("현재 숫자 가져오기")}로 기존 데이터에서 빠르게 추정할 수도 있습니다.</>}</>,
     retFields: (cur) => [
       { k: "currentAge", label: "현재 나이", suffix: "세" },
       { k: "retireAge", label: "목표 은퇴 나이", suffix: "세" },
@@ -1272,7 +1347,7 @@ export const STRINGS = {
     kProjected: "은퇴 시 예상 자산", kNeeded: "은퇴에 필요한 금액", neededSub: "4% 규칙 + 인플레이션",
     kSurplus: "여유", kShortfall: "부족",
     kFreedom: "예상 경제적 자유", freedomAdjust: "조정 필요",
-    freedomBy: (age) => `${age}세 달성`, freedomNotReached: "은퇴 전 미달성",
+    freedomAgeVal: (age) => `${age}세`, freedomAhead: (yrs) => yrs > 0 ? `목표보다 ${yrs}년 빠름` : "목표 나이와 동일", freedomNotReached: "은퇴 전 미달성",
     ageSuffixKpi: "세",
     secAssetsVsNeeded: "자산 vs 필요 금액", crossover: "두 선이 만나는 지점 = 경제적 자유",
     projectedName: "예상 자산", neededName: "필요 금액",
