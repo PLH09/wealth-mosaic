@@ -263,7 +263,6 @@ export const STRINGS = {
     netLabel: "Current net worth",
     btnGuided: "✦ Guided fill",
     btnRecap: "🔊 Voice recap",
-    btnSample: "Load sample",
     btnExport: "Export",
     btnImport: "Import",
     btnClear: "Clear",
@@ -285,7 +284,7 @@ export const STRINGS = {
         { title: "Four focused sections", body: "Switch between Overview, Cash Flow, Investments and Retirement here. Each gives a clear, plain-language read on your money." },
         { title: "Your live net worth", body: "This figure updates instantly as you edit your assets and debts, so you always know where you stand." },
         { title: "Fill in your numbers fast", body: "Tap the ✦ button to answer a few simple questions and your dashboard fills itself in — no spreadsheets needed." },
-        { title: "Sample data & more", body: "Open this menu to load sample data, import or export a backup, clear everything, or replay this tour anytime." },
+        { title: "Backups & more", body: "Open this menu to import or export a backup, clear everything, or replay this tour anytime." },
         { title: "Five languages", body: "Switch the interface between English, 繁體中文, 简体中文, 日本語 and 한국어 whenever you like." },
         { title: "You're all set", body: "Explore freely — your data is saved automatically in this browser. Enjoy taking charge of your finances!" },
       ],
@@ -336,7 +335,7 @@ export const STRINGS = {
     goalName: "Goal name", goalTargetPH: "Target amount", goalSavedPH: "Saved so far", addGoal: "Add goal",
     defaultMilestone: { label: "First $100K", target: 100000 },
     insight: (v, H) => v.empty ? (
-      <>Nothing here yet. Tap {b("✦ Guided fill")} to answer a few quick questions, or open {b("⋯ More → Load sample")} to explore with example numbers. Your data stays in this browser.</>
+      <>Nothing here yet. Tap {b("✦ Guided fill")} to answer a few quick questions and build your dashboard. Your data stays in this browser.</>
     ) : v.stalled ? (
       <>Your spending is at or above your income, so the wealth engine has stalled. Start by cutting one or two {b("recurring expenses")} — that keeps saving you money every month.</>
     ) : (
@@ -412,42 +411,6 @@ export const STRINGS = {
       { q: "How much will you spend per month in retirement?", hint: "In today’s prices — inflation is added automatically", suffix: cur, target: { type: "retire", key: "monthlySpend" } },
       { q: "How much can you invest toward retirement monthly?", hint: "Your monthly surplus is a good starting estimate", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
-    sample: () => ({
-      recurring: {
-        income: [{ id: uid(), label: "Salary", value: 6000 }],
-        expenses: [
-          { id: uid(), label: "Rent", value: 1800, category: "Housing" },
-          { id: uid(), label: "Insurance", value: 250, category: "Insurance" },
-          { id: uid(), label: "Streaming", value: 45, category: "Subscriptions" },
-        ],
-      },
-      months: { [ym()]: { income: [{ id: uid(), label: "Freelance", value: 600 }], expenses: [
-        { id: uid(), label: "Groceries", value: 700, category: "Food" },
-        { id: uid(), label: "Transport", value: 180, category: "Transport" },
-        { id: uid(), label: "Leisure", value: 300, category: "Leisure" },
-      ] } },
-      assets: [
-        { id: uid(), label: "Checking account", value: 9000, category: "Savings" },
-        { id: uid(), label: "Brokerage", value: 17000, category: "Investments" },
-        { id: uid(), label: "Emergency fund", value: 5000, category: "Cash" },
-      ],
-      liabilities: [
-        { id: uid(), label: "Credit card", value: 700 },
-        { id: uid(), label: "Student loan", value: 6000 },
-      ],
-      netWorthHistory: (() => { const h = {}; const base = 28000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 1400 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 400)); } return h; })(),
-      portfolio: [
-        { id: uid(), label: "VOO S&P 500", value: 7000, category: "ETF" },
-        { id: uid(), label: "Apple", value: 5000, category: "US Stocks" },
-        { id: uid(), label: "VXUS", value: 3000, category: "ETF" },
-        { id: uid(), label: "Bitcoin", value: 2000, category: "Crypto" },
-      ],
-      goals: [
-        { id: uid(), label: "First $100K", target: 100000, current: 74800 },
-        { id: uid(), label: "Travel fund", target: 4000, current: 1500 },
-      ],
-      retire: { currentAge: 30, retireAge: 60, monthlySpend: 3000, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 17000, monthlyContribution: 3325 },
-    }),
     story: (c, data, H) => {
       const sayNum = (n) => H.money(n, H.cur);
       const parts = [];
@@ -455,7 +418,7 @@ export const STRINGS = {
       parts.push(hour < 5 ? "It's late, yet here you are caring about your money — that says a lot about you." : hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening, you've earned some rest.");
       if (c.netWorth > 0) parts.push(`First, some good news — your net worth right now stands at ${sayNum(c.netWorth)}. That's ${sayNum(c.assets)} in assets, holding up ${sayNum(c.liab)} in debt, and what's left is truly yours. Every dollar is proof of your effort.`);
       else if (c.assets > 0 || c.liab > 0) parts.push(`Your net worth is still below the surface, but don't lose heart. Debt is just a stretch of road you haven't finished — not the destination. By facing it today, you've already beaten yesterday's you.`);
-      else parts.push(`Our story is still a blank page, and that's the exciting part. Tap Guided fill or Load sample, and let me help you write the first line.`);
+      else parts.push(`Our story is still a blank page, and that's the exciting part. Tap Guided fill, and let me help you write the first line.`);
       if (c.income > 0 || c.expense > 0) {
         let verdict;
         if (c.rate >= 30) verdict = `A savings rate of ${c.rate.toFixed(0)} percent — that's beautiful. Most people only dream of this, and you did it.`;
@@ -503,7 +466,6 @@ export const STRINGS = {
     netLabel: "目前淨資產",
     btnGuided: "✦ 引導填寫",
     btnRecap: "🔊 語音總結",
-    btnSample: "載入範例",
     btnExport: "匯出",
     btnImport: "匯入",
     btnClear: "清空",
@@ -525,7 +487,7 @@ export const STRINGS = {
         { title: "四個重點分頁", body: "在這裡切換總覽、現金流、投資與退休。每個分頁都用白話幫你看懂自己的財務狀況。" },
         { title: "即時淨值", body: "當你編輯資產與負債時,這個數字會立即更新,讓你隨時掌握現況。" },
         { title: "快速填入你的數字", body: "點這顆 ✦ 按鈕回答幾個簡單問題,儀表板就會自動幫你填好,不必碰試算表。" },
-        { title: "範例資料與更多功能", body: "打開這個選單可載入範例資料、匯入或匯出備份、清除全部,或隨時重看本導覽。" },
+        { title: "備份與更多功能", body: "打開這個選單可匯入或匯出備份、清除全部,或隨時重看本導覽。" },
         { title: "五種語言", body: "隨時可把介面切換成 English、繁體中文、简体中文、日本語 或 한국어。" },
         { title: "一切就緒", body: "盡情探索吧 —— 你的資料會自動存在這個瀏覽器裡。祝你掌握理財、輕鬆自在!" },
       ],
@@ -576,7 +538,7 @@ export const STRINGS = {
     goalName: "目標名稱", goalTargetPH: "目標金額", goalSavedPH: "已存金額", addGoal: "新增目標",
     defaultMilestone: { label: "第一桶金", target: 1000000 },
     insight: (v, H) => v.empty ? (
-      <>目前還沒有資料。點 {b("✦ 引導填寫")} 回答幾個簡單問題,或從 {b("⋯ 更多 → 載入範例")} 用示範數字先逛逛。你的資料只會留在這個瀏覽器。</>
+      <>目前還沒有資料。點 {b("✦ 引導填寫")} 回答幾個簡單問題,即可建立你的儀表板。你的資料只會留在這個瀏覽器。</>
     ) : v.stalled ? (
       <>本月支出大於或等於收入,財富累積的引擎停住了。先從砍掉一兩項{b("固定支出")}開始 —— 那會每個月持續幫你存下錢。</>
     ) : (
@@ -652,42 +614,6 @@ export const STRINGS = {
       { q: "退休後每月想花多少?", hint: "用今天的物價估,系統會自動計入通膨", suffix: cur, target: { type: "retire", key: "monthlySpend" } },
       { q: "每月能投入多少做退休準備?", hint: "可先用每月結餘估", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
-    sample: () => ({
-      recurring: {
-        income: [{ id: uid(), label: "月薪", value: 65000 }],
-        expenses: [
-          { id: uid(), label: "房租", value: 18000, category: "居住" },
-          { id: uid(), label: "保險", value: 4000, category: "保險" },
-          { id: uid(), label: "串流訂閱", value: 800, category: "訂閱" },
-        ],
-      },
-      months: { [ym()]: { income: [{ id: uid(), label: "接案", value: 8000 }], expenses: [
-        { id: uid(), label: "伙食", value: 12000, category: "飲食" },
-        { id: uid(), label: "交通", value: 2500, category: "交通" },
-        { id: uid(), label: "娛樂", value: 4000, category: "娛樂" },
-      ] } },
-      assets: [
-        { id: uid(), label: "活存帳戶", value: 280000, category: "存款" },
-        { id: uid(), label: "證券戶投資", value: 520000, category: "投資" },
-        { id: uid(), label: "緊急預備金", value: 150000, category: "現金" },
-      ],
-      liabilities: [
-        { id: uid(), label: "信用卡", value: 22000 },
-        { id: uid(), label: "學貸", value: 180000 },
-      ],
-      netWorthHistory: (() => { const h = {}; const base = 600000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 28000 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 9000)); } return h; })(),
-      portfolio: [
-        { id: uid(), label: "VOO 標普500", value: 210000, category: "ETF" },
-        { id: uid(), label: "台積電", value: 160000, category: "台股" },
-        { id: uid(), label: "0050", value: 90000, category: "ETF" },
-        { id: uid(), label: "比特幣", value: 60000, category: "加密貨幣" },
-      ],
-      goals: [
-        { id: uid(), label: "第一桶金", target: 1000000, current: 748000 },
-        { id: uid(), label: "出國旅遊基金", target: 120000, current: 45000 },
-      ],
-      retire: { currentAge: 30, retireAge: 60, monthlySpend: 40000, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 670000, monthlyContribution: 28000 },
-    }),
     story: (c, data, H) => {
       const sayNum = (n) => H.short(n) + "元";
       const parts = [];
@@ -695,7 +621,7 @@ export const STRINGS = {
       parts.push(hour < 5 ? "夜深了,還在關心自己的錢,這份用心很難得。" : hour < 12 ? "早安。" : hour < 18 ? "午安。" : "晚安,辛苦一天了。");
       if (c.netWorth > 0) parts.push(`先給你一個好消息——此刻你的淨資產來到 ${sayNum(c.netWorth)}。這是你用 ${sayNum(c.assets)} 的資產,一點一滴扛起 ${sayNum(c.liab)} 的負債後,真正屬於你的數字。每一塊,都是你努力的證明。`);
       else if (c.assets > 0 || c.liab > 0) parts.push(`現在的淨資產還在水面下,但別灰心。負債只是還沒走完的一段路,不是終點。你願意打開這個畫面面對它,就已經贏過昨天的自己了。`);
-      else parts.push(`我們的故事還是一張白紙,而這正是最令人期待的地方。點一下「引導填寫」或「載入範例」,讓我陪你寫下第一頁。`);
+      else parts.push(`我們的故事還是一張白紙,而這正是最令人期待的地方。點一下「引導填寫」,讓我陪你寫下第一頁。`);
       if (c.income > 0 || c.expense > 0) {
         let verdict;
         if (c.rate >= 30) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,太漂亮了!這是很多人想都不敢想的數字,你做到了。`;
@@ -743,7 +669,6 @@ export const STRINGS = {
     netLabel: "目前净资产",
     btnGuided: "✦ 引导填写",
     btnRecap: "🔊 语音总结",
-    btnSample: "载入示例",
     btnExport: "导出",
     btnImport: "导入",
     btnClear: "清空",
@@ -765,7 +690,7 @@ export const STRINGS = {
         { title: "四个重点分页", body: "在这里切换总览、现金流、投资与退休。每个分页都用大白话帮你看懂自己的财务状况。" },
         { title: "实时净值", body: "当你编辑资产与负债时,这个数字会立即更新,让你随时掌握现状。" },
         { title: "快速填入你的数字", body: "点这颗 ✦ 按钮回答几个简单问题,仪表板就会自动帮你填好,不必碰电子表格。" },
-        { title: "示例数据与更多功能", body: "打开这个菜单可载入示例数据、导入或导出备份、清除全部,或随时重看本导览。" },
+        { title: "备份与更多功能", body: "打开这个菜单可导入或导出备份、清除全部,或随时重看本导览。" },
         { title: "五种语言", body: "随时可把界面切换成 English、繁體中文、简体中文、日本語 或 한국어。" },
         { title: "一切就绪", body: "尽情探索吧 —— 你的数据会自动存在这个浏览器里。祝你轻松掌握理财!" },
       ],
@@ -816,7 +741,7 @@ export const STRINGS = {
     goalName: "目标名称", goalTargetPH: "目标金额", goalSavedPH: "已存金额", addGoal: "新增目标",
     defaultMilestone: { label: "第一桶金", target: 1000000 },
     insight: (v, H) => v.empty ? (
-      <>目前还没有数据。点 {b("✦ 引导填写")} 回答几个简单问题,或从 {b("⋯ 更多 → 载入示例")} 用示范数字先逛逛。你的数据只会留在这个浏览器。</>
+      <>目前还没有数据。点 {b("✦ 引导填写")} 回答几个简单问题,即可建立你的仪表板。你的数据只会留在这个浏览器。</>
     ) : v.stalled ? (
       <>本月支出大于或等于收入,财富累积的引擎停住了。先从砍掉一两项{b("固定支出")}开始 —— 那会每个月持续帮你存下钱。</>
     ) : (
@@ -892,42 +817,6 @@ export const STRINGS = {
       { q: "退休后每月想花多少?", hint: "用今天的物价估,系统会自动计入通胀", suffix: cur, target: { type: "retire", key: "monthlySpend" } },
       { q: "每月能投入多少做退休准备?", hint: "可先用每月结余估", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
-    sample: () => ({
-      recurring: {
-        income: [{ id: uid(), label: "月薪", value: 18000 }],
-        expenses: [
-          { id: uid(), label: "房租", value: 5000, category: "居住" },
-          { id: uid(), label: "保险", value: 1200, category: "保险" },
-          { id: uid(), label: "视频会员", value: 50, category: "订阅" },
-        ],
-      },
-      months: { [ym()]: { income: [{ id: uid(), label: "兼职", value: 2000 }], expenses: [
-        { id: uid(), label: "伙食", value: 3000, category: "饮食" },
-        { id: uid(), label: "交通", value: 600, category: "交通" },
-        { id: uid(), label: "娱乐", value: 1000, category: "娱乐" },
-      ] } },
-      assets: [
-        { id: uid(), label: "活期账户", value: 80000, category: "存款" },
-        { id: uid(), label: "证券账户", value: 150000, category: "投资" },
-        { id: uid(), label: "应急金", value: 40000, category: "现金" },
-      ],
-      liabilities: [
-        { id: uid(), label: "信用卡", value: 6000 },
-        { id: uid(), label: "助学贷款", value: 50000 },
-      ],
-      netWorthHistory: (() => { const h = {}; const base = 170000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 8000 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 2500)); } return h; })(),
-      portfolio: [
-        { id: uid(), label: "沪深300 ETF", value: 60000, category: "ETF" },
-        { id: uid(), label: "贵州茅台", value: 45000, category: "A股" },
-        { id: uid(), label: "标普500", value: 30000, category: "美股" },
-        { id: uid(), label: "比特币", value: 15000, category: "加密货币" },
-      ],
-      goals: [
-        { id: uid(), label: "第一桶金", target: 300000, current: 210000 },
-        { id: uid(), label: "旅游基金", target: 30000, current: 12000 },
-      ],
-      retire: { currentAge: 30, retireAge: 60, monthlySpend: 12000, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 190000, monthlyContribution: 8000 },
-    }),
     story: (c, data, H) => {
       const sayNum = (n) => H.short(n) + "元";
       const parts = [];
@@ -935,7 +824,7 @@ export const STRINGS = {
       parts.push(hour < 5 ? "夜深了,还在关心自己的钱,这份用心很难得。" : hour < 12 ? "早安。" : hour < 18 ? "午安。" : "晚安,辛苦一天了。");
       if (c.netWorth > 0) parts.push(`先给你一个好消息——此刻你的净资产来到 ${sayNum(c.netWorth)}。这是你用 ${sayNum(c.assets)} 的资产,一点一滴扛起 ${sayNum(c.liab)} 的负债后,真正属于你的数字。每一块,都是你努力的证明。`);
       else if (c.assets > 0 || c.liab > 0) parts.push(`现在的净资产还在水面下,但别灰心。负债只是还没走完的一段路,不是终点。你愿意打开这个画面面对它,就已经赢过昨天的自己了。`);
-      else parts.push(`我们的故事还是一张白纸,而这正是最令人期待的地方。点一下「引导填写」或「载入示例」,让我陪你写下第一页。`);
+      else parts.push(`我们的故事还是一张白纸,而这正是最令人期待的地方。点一下「引导填写」,让我陪你写下第一页。`);
       if (c.income > 0 || c.expense > 0) {
         let verdict;
         if (c.rate >= 30) verdict = `储蓄率 ${c.rate.toFixed(0)}%,太漂亮了!这是很多人想都不敢想的数字,你做到了。`;
@@ -983,7 +872,6 @@ export const STRINGS = {
     netLabel: "現在の純資産",
     btnGuided: "✦ ガイド入力",
     btnRecap: "🔊 音声まとめ",
-    btnSample: "サンプル読込",
     btnExport: "エクスポート",
     btnImport: "インポート",
     btnClear: "クリア",
@@ -1005,7 +893,7 @@ export const STRINGS = {
         { title: "4つのセクション", body: "ここで概要・収支・投資・退職を切り替えます。それぞれが分かりやすい言葉でお金の状況を示します。" },
         { title: "リアルタイムの純資産", body: "資産と負債を編集すると、この数字が即座に更新され、いつでも現状を把握できます。" },
         { title: "数字をすばやく入力", body: "✦ ボタンを押していくつかの質問に答えるだけで、ダッシュボードが自動で入力されます。" },
-        { title: "サンプルデータとその他", body: "このメニューからサンプル読み込み、バックアップの入出力、全消去、ツアーの再生ができます。" },
+        { title: "バックアップとその他", body: "このメニューからバックアップの入出力、全消去、ツアーの再生ができます。" },
         { title: "5つの言語", body: "English・繁體中文・简体中文・日本語・한국어 にいつでも切り替えられます。" },
         { title: "準備完了", body: "自由に操作してください。データはこのブラウザに自動保存されます。お金の管理を楽しんで！" },
       ],
@@ -1056,7 +944,7 @@ export const STRINGS = {
     goalName: "目標名", goalTargetPH: "目標金額", goalSavedPH: "現在の額", addGoal: "目標を追加",
     defaultMilestone: { label: "最初の1000万", target: 10000000 },
     insight: (v, H) => v.empty ? (
-      <>まだデータがありません。{b("✦ ガイド入力")} でいくつかの質問に答えるか、{b("⋯ その他 → サンプル読み込み")} で例の数字を試してみましょう。データはこのブラウザ内に保存されます。</>
+      <>まだデータがありません。{b("✦ ガイド入力")} でいくつかの質問に答えれば、ダッシュボードが完成します。データはこのブラウザ内に保存されます。</>
     ) : v.stalled ? (
       <>今月は支出が収入以上で、資産形成のエンジンが止まっています。まずは{b("固定支出")}を1〜2件減らすことから —— それが毎月の貯蓄につながります。</>
     ) : (
@@ -1132,42 +1020,6 @@ export const STRINGS = {
       { q: "退職後は毎月いくら使う予定ですか?", hint: "現在の物価で — インフレは自動で加味されます", suffix: cur, target: { type: "retire", key: "monthlySpend" } },
       { q: "退職に向けて毎月いくら投資できますか?", hint: "毎月の収支が目安になります", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
-    sample: () => ({
-      recurring: {
-        income: [{ id: uid(), label: "給与", value: 320000 }],
-        expenses: [
-          { id: uid(), label: "家賃", value: 90000, category: "住居" },
-          { id: uid(), label: "保険", value: 15000, category: "保険" },
-          { id: uid(), label: "サブスク", value: 2000, category: "サブスク" },
-        ],
-      },
-      months: { [ym()]: { income: [{ id: uid(), label: "副業", value: 40000 }], expenses: [
-        { id: uid(), label: "食費", value: 60000, category: "食費" },
-        { id: uid(), label: "交通", value: 12000, category: "交通" },
-        { id: uid(), label: "娯楽", value: 20000, category: "娯楽" },
-      ] } },
-      assets: [
-        { id: uid(), label: "普通預金", value: 1400000, category: "預金" },
-        { id: uid(), label: "証券口座", value: 2600000, category: "投資" },
-        { id: uid(), label: "緊急資金", value: 750000, category: "現金" },
-      ],
-      liabilities: [
-        { id: uid(), label: "クレジットカード", value: 110000 },
-        { id: uid(), label: "奨学金", value: 900000 },
-      ],
-      netWorthHistory: (() => { const h = {}; const base = 3000000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 140000 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 45000)); } return h; })(),
-      portfolio: [
-        { id: uid(), label: "eMAXIS Slim 米国株", value: 1000000, category: "ETF" },
-        { id: uid(), label: "トヨタ", value: 700000, category: "日本株" },
-        { id: uid(), label: "S&P500", value: 600000, category: "米国株" },
-        { id: uid(), label: "ビットコイン", value: 300000, category: "暗号資産" },
-      ],
-      goals: [
-        { id: uid(), label: "最初の1000万", target: 10000000, current: 7480000 },
-        { id: uid(), label: "旅行資金", target: 600000, current: 220000 },
-      ],
-      retire: { currentAge: 30, retireAge: 60, monthlySpend: 200000, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 3300000, monthlyContribution: 140000 },
-    }),
     story: (c, data, H) => {
       const sayNum = (n) => H.short(n) + "円";
       const parts = [];
@@ -1175,7 +1027,7 @@ export const STRINGS = {
       parts.push(hour < 5 ? "夜遅くまで、自分のお金に向き合っている —— その心がけは本当に立派です。" : hour < 12 ? "おはようございます。" : hour < 18 ? "こんにちは。" : "こんばんは、今日もお疲れさまでした。");
       if (c.netWorth > 0) parts.push(`まず良い知らせを —— 今のあなたの純資産は ${sayNum(c.netWorth)} です。${sayNum(c.assets)} の資産で ${sayNum(c.liab)} の負債を支え、残ったのは本当にあなたのもの。一円一円が努力の証です。`);
       else if (c.assets > 0 || c.liab > 0) parts.push(`今の純資産はまだ水面下ですが、気を落とさないで。負債はまだ走り切っていない道であって、ゴールではありません。今日それと向き合えた時点で、昨日の自分を超えています。`);
-      else parts.push(`私たちの物語はまだ白紙、そこが一番わくわくするところです。「ガイド入力」か「サンプル読込」を押して、最初の一行を一緒に書きましょう。`);
+      else parts.push(`私たちの物語はまだ白紙、そこが一番わくわくするところです。「ガイド入力」を押して、最初の一行を一緒に書きましょう。`);
       if (c.income > 0 || c.expense > 0) {
         let verdict;
         if (c.rate >= 30) verdict = `貯蓄率 ${c.rate.toFixed(0)}% —— 見事です。多くの人が夢見るだけの数字を、あなたは実現しました。`;
@@ -1223,7 +1075,6 @@ export const STRINGS = {
     netLabel: "현재 순자산",
     btnGuided: "✦ 가이드 입력",
     btnRecap: "🔊 음성 요약",
-    btnSample: "샘플 불러오기",
     btnExport: "내보내기",
     btnImport: "가져오기",
     btnClear: "초기화",
@@ -1245,7 +1096,7 @@ export const STRINGS = {
         { title: "네 가지 핵심 탭", body: "여기에서 개요·현금 흐름·투자·은퇴를 전환합니다. 각 탭이 쉬운 말로 자산 상황을 보여줍니다." },
         { title: "실시간 순자산", body: "자산과 부채를 수정하면 이 숫자가 즉시 갱신되어 언제든 현재 상태를 알 수 있습니다." },
         { title: "숫자를 빠르게 입력", body: "✦ 버튼을 눌러 몇 가지 간단한 질문에 답하면 대시보드가 자동으로 채워집니다." },
-        { title: "샘플 데이터와 그 외 기능", body: "이 메뉴에서 샘플 불러오기, 백업 가져오기·내보내기, 전체 삭제, 둘러보기 다시 보기를 할 수 있습니다." },
+        { title: "백업과 그 외 기능", body: "이 메뉴에서 백업 가져오기·내보내기, 전체 삭제, 둘러보기 다시 보기를 할 수 있습니다." },
         { title: "다섯 가지 언어", body: "English·繁體中文·简体中文·日本語·한국어 로 언제든지 전환할 수 있습니다." },
         { title: "준비 완료", body: "자유롭게 둘러보세요. 데이터는 이 브라우저에 자동 저장됩니다. 즐겁게 자산을 관리하세요!" },
       ],
@@ -1296,7 +1147,7 @@ export const STRINGS = {
     goalName: "목표 이름", goalTargetPH: "목표 금액", goalSavedPH: "현재 모은 금액", addGoal: "목표 추가",
     defaultMilestone: { label: "첫 1억", target: 100000000 },
     insight: (v, H) => v.empty ? (
-      <>아직 데이터가 없습니다. {b("✦ 가이드 입력")} 으로 몇 가지 질문에 답하거나, {b("⋯ 더 보기 → 샘플 불러오기")} 로 예시 숫자를 둘러보세요. 데이터는 이 브라우저에만 저장됩니다.</>
+      <>아직 데이터가 없습니다. {b("✦ 가이드 입력")} 으로 몇 가지 질문에 답하면 대시보드가 완성됩니다. 데이터는 이 브라우저에만 저장됩니다.</>
     ) : v.stalled ? (
       <>이번 달은 지출이 수입 이상이라 자산 형성 엔진이 멈췄습니다. 우선 {b("고정 지출")} 한두 개를 줄이는 것부터 —— 매달 꾸준히 저축에 도움이 됩니다.</>
     ) : (
@@ -1372,42 +1223,6 @@ export const STRINGS = {
       { q: "은퇴 후 매월 얼마를 쓸 계획인가요?", hint: "현재 물가 기준 — 인플레이션은 자동 반영됩니다", suffix: cur, target: { type: "retire", key: "monthlySpend" } },
       { q: "은퇴를 위해 매월 얼마를 투자할 수 있나요?", hint: "매월 잔여가 좋은 기준이 됩니다", optional: true, suffix: cur, target: { type: "retire", key: "monthlyContribution" } },
     ],
-    sample: () => ({
-      recurring: {
-        income: [{ id: uid(), label: "급여", value: 3500000 }],
-        expenses: [
-          { id: uid(), label: "월세", value: 800000, category: "주거" },
-          { id: uid(), label: "보험", value: 150000, category: "보험" },
-          { id: uid(), label: "구독", value: 20000, category: "구독" },
-        ],
-      },
-      months: { [ym()]: { income: [{ id: uid(), label: "부업", value: 400000 }], expenses: [
-        { id: uid(), label: "식비", value: 600000, category: "식비" },
-        { id: uid(), label: "교통", value: 120000, category: "교통" },
-        { id: uid(), label: "여가", value: 200000, category: "여가" },
-      ] } },
-      assets: [
-        { id: uid(), label: "입출금 계좌", value: 15000000, category: "예금" },
-        { id: uid(), label: "증권 계좌", value: 28000000, category: "투자" },
-        { id: uid(), label: "비상금", value: 8000000, category: "현금" },
-      ],
-      liabilities: [
-        { id: uid(), label: "신용카드", value: 1200000 },
-        { id: uid(), label: "학자금 대출", value: 10000000 },
-      ],
-      netWorthHistory: (() => { const h = {}; const base = 32000000; for (let i = 5; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); h[ym(d)] = base + (5 - i) * 1500000 + (i === 0 ? 0 : Math.round((Math.random() - 0.3) * 500000)); } return h; })(),
-      portfolio: [
-        { id: uid(), label: "KODEX 200", value: 11000000, category: "ETF" },
-        { id: uid(), label: "삼성전자", value: 8000000, category: "국내주식" },
-        { id: uid(), label: "S&P500", value: 6000000, category: "미국주식" },
-        { id: uid(), label: "비트코인", value: 3000000, category: "암호화폐" },
-      ],
-      goals: [
-        { id: uid(), label: "첫 1억", target: 100000000, current: 74800000 },
-        { id: uid(), label: "여행 자금", target: 6000000, current: 2200000 },
-      ],
-      retire: { currentAge: 30, retireAge: 60, monthlySpend: 2500000, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 35000000, monthlyContribution: 1500000 },
-    }),
     story: (c, data, H) => {
       const sayNum = (n) => H.short(n) + "원";
       const parts = [];
@@ -1415,7 +1230,7 @@ export const STRINGS = {
       parts.push(hour < 5 ? "밤이 깊었는데도 자신의 돈을 챙기고 있군요 —— 그 마음가짐이 참 대단합니다." : hour < 12 ? "좋은 아침입니다." : hour < 18 ? "안녕하세요." : "수고하셨어요, 좋은 저녁입니다.");
       if (c.netWorth > 0) parts.push(`먼저 좋은 소식 —— 지금 당신의 순자산은 ${sayNum(c.netWorth)}입니다. ${sayNum(c.assets)}의 자산으로 ${sayNum(c.liab)}의 부채를 떠받치고 남은, 진짜 당신의 몫이죠. 한 푼 한 푼이 당신 노력의 증거입니다.`);
       else if (c.assets > 0 || c.liab > 0) parts.push(`지금 순자산은 아직 수면 아래지만 낙심하지 마세요. 부채는 아직 다 걷지 못한 길일 뿐, 종착지가 아닙니다. 오늘 마주한 것만으로도 어제의 자신을 이겼습니다.`);
-      else parts.push(`우리의 이야기는 아직 백지이고, 그래서 가장 설레는 부분입니다. 「가이드 입력」이나 「샘플 불러오기」를 눌러 첫 줄을 함께 써봐요.`);
+      else parts.push(`우리의 이야기는 아직 백지이고, 그래서 가장 설레는 부분입니다. 「가이드 입력」을 눌러 첫 줄을 함께 써봐요.`);
       if (c.income > 0 || c.expense > 0) {
         let verdict;
         if (c.rate >= 30) verdict = `저축률 ${c.rate.toFixed(0)}% —— 정말 멋집니다. 많은 사람이 꿈만 꾸는 숫자를 당신은 해냈어요.`;

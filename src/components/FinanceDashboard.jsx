@@ -766,7 +766,6 @@ export default function FinanceDashboard({ locale = "en" }) {
                 {moreOpen && (
                   <div className="more-menu" role="menu">
                     <button className="more-item" role="menuitem" onClick={() => { setMoreOpen(false); setTourOpen(true); }}>{t.tour.menu}</button>
-                    <button className="more-item" role="menuitem" onClick={() => { update({ ...t.sample() }); setMoreOpen(false); }}>{t.btnSample}</button>
                     <button className="more-item" role="menuitem" onClick={() => { exportData(); setMoreOpen(false); }}>{t.btnExport}</button>
                     <button className="more-item" role="menuitem" onClick={() => { fileRef.current && fileRef.current.click(); setMoreOpen(false); }}>{t.btnImport}</button>
                     <button className="more-item danger" role="menuitem" onClick={() => { setMoreOpen(false); if (confirm(t.clearConfirm)) update({ ...DEFAULT }); }}>{t.btnClear}</button>
@@ -1360,7 +1359,7 @@ const TOUR_SELECTORS = [
   ".fd-tabs",           // section tabs
   ".fd-net",            // live net-worth figure
   ".fab",               // guided-fill button
-  ".more-wrap",         // more menu (sample / import / export / replay tour)
+  ".more-wrap",         // more menu (import / export / clear / replay tour)
   "[data-tour='lang']", // language switcher (rendered by App.jsx)
   null,                 // wrap-up
 ];
