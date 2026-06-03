@@ -430,7 +430,7 @@ export const STRINGS = {
         { id: uid(), label: "First $100K", target: 100000, current: 74800 },
         { id: uid(), label: "Travel fund", target: 4000, current: 1500 },
       ],
-      retire: { currentAge: 30, retireAge: 60, monthlySpend: 3500, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 31000, monthlyContribution: 1200 },
+      retire: { currentAge: 30, retireAge: 60, monthlySpend: 3000, withdrawalRate: 4, annualReturn: 6, inflation: 2, currentSavings: 60000, monthlyContribution: 3000 },
     }),
     story: (c, data, H) => {
       const sayNum = (n) => H.money(n, H.cur);
