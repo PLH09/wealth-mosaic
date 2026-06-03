@@ -1121,6 +1121,7 @@ export default function FinanceDashboard({ locale = "en" }) {
 
               {!qaDone ? (
                 <div className="qa-body">
+                  <div className="qa-hint" style={{ marginBottom: 4 }}>{t.quickAppendNote}</div>
                   {voice && (
                     <div className="quick-mic-row">
                       <button className={"mic " + (listening ? "on" : "")} onClick={listening ? stopVoice : startQuickVoice}>
