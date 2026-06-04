@@ -91,10 +91,25 @@ Each question has a `target` describing where the answer is written (e.g.
 `{ type: "recurring_expense", category: cats.expense[0] }`, `{ type: "asset", assetType: cats.asset[1] }`,
 `{ type: "retire", key: "currentAge" }`). The apply logic is in `FinanceDashboard.jsx`
 (search `tg.type ===`). A previous conversational **voice-assistant** feature was fully removed,
-but two lighter voice features remain: (1) the guided-fill **🎤 mic** (Web Speech
-`SpeechRecognition`) that fills the highlighted blank from spoken numbers, and (2) the header
-**🔊 Voice recap** (Web Speech `speechSynthesis`) that reads the financial story aloud. Both
+but three lighter voice features remain: (1) the guided-fill **🎤 mic** (Web Speech
+`SpeechRecognition`) that fills the highlighted blank from spoken numbers, (2) the header
+**🔊 Voice recap** (Web Speech `speechSynthesis`) that reads the financial story aloud, and
+(3) the **🎙️ global voice command** FAB (bottom-right, above the ✦ FAB). Both
 degrade gracefully (no-op / alert) on browsers without Web Speech support.
+
+### 5c. Global voice command (🎙️)
+
+`VOICE[locale].parser.parseCommand(text)` (in `i18n.jsx`, only en / zh-TW / zh-CN; ja/ko are
+typing-only) turns a free-form sentence into `{ action, bucket, items[] }` and the 🎙️ FAB applies
+it WITHOUT opening edit mode, across any tab. One sentence can fill **multiple same-bucket items**
+(via `splitMultiLabelAmount`). Buckets: `recurring_income`, `recurring_expense`, `month_income`,
+`month_expense`, `asset`, `liability`, `portfolio`. Saying a **this-month / 本月 / variable** word
+routes income/expense to the monthly ledger (`data.months[month]`) instead of fixed `recurring`;
+otherwise it's a fixed recurring item. `applyVoiceCommand` in `FinanceDashboard.jsx` writes the
+buckets and `setTab`s to the relevant tab; a `.vc-toast` shows what was heard/added. Gotchas the
+parser handles: ASR thousands-separator commas are stripped before splitting (so "10,000" stays
+10000), and bare-digit multi-items are broken on digit→CJK boundaries. All copy is per-locale
+(`vcTitle, vcHint, vcListening, vcBuckets, vcAdded, vcNav, vcNoBucket, vcUnrecognized`).
 
 ### 5b. Guided product tour (導覽)
 

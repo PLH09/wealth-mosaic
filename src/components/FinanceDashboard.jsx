@@ -188,6 +188,18 @@ const buildCSS = (f) => `
   background:linear-gradient(160deg,var(--gold2),var(--gold));color:#1b1610;font-size:22px;cursor:pointer;z-index:40;
   box-shadow:0 12px 30px -8px rgba(194,151,47,.5);transition:.2s;animation:rise .5s ease both;}
 .fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 36px -8px rgba(194,151,47,.65);}
+/* global voice-command FAB sits just above the guided-fill FAB */
+.fab-cmd{bottom:88px;background:var(--surface);border:1px solid var(--line2);color:var(--text);font-size:20px;
+  box-shadow:0 10px 26px -10px rgba(0,0,0,.5);}
+.fab-cmd:hover{border-color:var(--gold);transform:translateY(-2px) scale(1.04);}
+.fab-cmd.on{border-color:var(--red);color:var(--red);background:rgba(196,92,54,.12);animation:pulse 1.1s infinite;}
+.vc-toast{position:fixed;right:22px;bottom:152px;z-index:41;max-width:min(320px,calc(100vw - 44px));
+  display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;}
+.vc-listening{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--red);
+  color:var(--text);border-radius:999px;padding:8px 14px;font-size:13px;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);}
+.vc-listening .mic-dot{width:9px;height:9px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
+.vc-result{background:var(--surface);border:1px solid var(--gold);color:var(--text);border-radius:12px;
+  padding:9px 14px;font-size:13.5px;line-height:1.45;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);animation:rise .3s ease both;}
 /* guided tour */
 .tour-root{position:fixed;inset:0;z-index:9000;}
 .tour-dim{position:absolute;inset:0;background:rgba(28,22,12,.62);backdrop-filter:blur(2px);animation:fade .25s ease both;}
@@ -376,6 +388,12 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [heard, setHeard] = useState("");
   const [speechErr, setSpeechErr] = useState("");
   const recogRef = React.useRef(null);
+  // global voice command (separate recognizer from guided-fill mic)
+  const [cmdListening, setCmdListening] = useState(false);
+  const [vcMsg, setVcMsg] = useState("");
+  const [vcHeard, setVcHeard] = useState("");
+  const cmdRecogRef = React.useRef(null);
+  const vcMsgTimer = React.useRef(null);
   const fileRef = React.useRef(null);
   const voicesRef = React.useRef([]);
   const speakCancelRef = React.useRef(false);
@@ -511,6 +529,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   const setActive = (i) => { activeIdxRef.current = i; setActiveIdx(i); };
 
   const openQA = () => {
+    stopVoiceCmd();
     setQuickVals(blankQuick());
     setActive(0); setQaLog([]); setQaDone(false);
     setHeard(""); setSpeechErr(""); setChatOpen(true);
@@ -605,6 +624,84 @@ export default function FinanceDashboard({ locale = "en" }) {
     };
     rec.onend = () => setListening(false);
     try { rec.start(); setListening(true); } catch { setSpeechErr(t.speechCantStart); }
+  };
+
+  // ---- global voice command (works on any tab, no edit mode) ----
+  const flashVcMsg = (msg) => {
+    setVcMsg(msg);
+    if (vcMsgTimer.current) clearTimeout(vcMsgTimer.current);
+    vcMsgTimer.current = setTimeout(() => setVcMsg(""), 4200);
+  };
+
+  const stopVoiceCmd = () => {
+    try { cmdRecogRef.current && cmdRecogRef.current.stop(); } catch { /* noop */ }
+    setCmdListening(false);
+  };
+
+  // apply a parsed "add" command into the right data bucket
+  const applyVoiceCommand = (cmd) => {
+    if (cmd.action === "nav") {
+      setTab(cmd.tab);
+      flashVcMsg(t.vcNav((TABS.find((x) => x.key === cmd.tab) || {}).label || cmd.tab));
+      return;
+    }
+    if (cmd.action === "unknown") { flashVcMsg(t.vcNoBucket); return; }
+    if (cmd.action !== "add" || !cmd.items || !cmd.items.length) return;
+    const mk = (it, cat) => ({ id: uid(), label: (it.label || "").trim() || t.fallbackItem, value: it.value, ...(cat ? { category: cat } : {}) });
+    const n = cmd.items.length;
+    update((prev) => {
+      const d = { ...prev };
+      if (cmd.bucket === "recurring_income") d.recurring = { ...d.recurring, income: [...d.recurring.income, ...cmd.items.map((it) => mk(it))] };
+      else if (cmd.bucket === "recurring_expense") d.recurring = { ...d.recurring, expenses: [...d.recurring.expenses, ...cmd.items.map((it) => mk(it, EXPENSE_CATS[6]))] };
+      else if (cmd.bucket === "month_income" || cmd.bucket === "month_expense") {
+        const cur0 = d.months[month] || { income: [], expenses: [] };
+        const m = { income: [...(cur0.income || [])], expenses: [...(cur0.expenses || [])] };
+        if (cmd.bucket === "month_income") m.income.push(...cmd.items.map((it) => mk(it)));
+        else m.expenses.push(...cmd.items.map((it) => mk(it, EXPENSE_CATS[6])));
+        d.months = { ...d.months, [month]: m };
+      }
+      else if (cmd.bucket === "asset") d.assets = [...d.assets, ...cmd.items.map((it) => mk(it, ASSET_TYPES[4]))];
+      else if (cmd.bucket === "liability") d.liabilities = [...d.liabilities, ...cmd.items.map((it) => mk(it))];
+      else if (cmd.bucket === "portfolio") d.portfolio = [...d.portfolio, ...cmd.items.map((it) => mk(it, INVEST_CATS[6]))];
+      return d;
+    });
+    // jump to the tab that shows what was just added, so the change is visible
+    const tabFor = { recurring_income: "cashflow", recurring_expense: "cashflow", month_income: "cashflow", month_expense: "cashflow", asset: "overview", liability: "overview", portfolio: "invest" };
+    if (tabFor[cmd.bucket]) setTab(tabFor[cmd.bucket]);
+    flashVcMsg(t.vcAdded(t.vcBuckets[cmd.bucket] || "", n));
+  };
+
+  const startVoiceCmd = () => {
+    if (!voice) return;
+    if (cmdListening) { stopVoiceCmd(); return; }
+    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SR) { flashVcMsg(t.speechNoSupport); return; }
+    let rec;
+    try { rec = new SR(); } catch { flashVcMsg(t.speechCantStart); return; }
+    rec.lang = voice.lang;
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.maxAlternatives = 1;
+    cmdRecogRef.current = rec;
+    setVcHeard("");
+    rec.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        const txt = r[0].transcript;
+        setVcHeard(txt);
+        if (r.isFinal) {
+          const cmd = voice.parser.parseCommand(txt.trim());
+          if (cmd) { applyVoiceCommand(cmd); setVcHeard(""); }
+          else flashVcMsg(t.vcUnrecognized(txt.trim()));
+        }
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { setCmdListening(false); flashVcMsg(t.speechBlocked); }
+      else if (e.error === "no-speech") { /* keep listening */ }
+    };
+    rec.onend = () => setCmdListening(false);
+    try { rec.start(); setCmdListening(true); } catch { flashVcMsg(t.speechCantStart); }
   };
 
   // commit every filled blank at once
@@ -1098,6 +1195,24 @@ export default function FinanceDashboard({ locale = "en" }) {
       {/* floating guided-fill button (kept visible during the tour so it can be highlighted) */}
       {!chatOpen && (
         <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
+      )}
+
+      {/* floating global voice-command button (only when speech is supported for this locale) */}
+      {voice && !chatOpen && (
+        <button
+          className={"fab fab-cmd " + (cmdListening ? "on" : "")}
+          onClick={startVoiceCmd}
+          aria-label={t.vcTitle}
+          title={t.vcHint}
+        >🎙️</button>
+      )}
+
+      {/* voice-command live transcript + result toast */}
+      {voice && (cmdListening || vcMsg) && !chatOpen && (
+        <div className="vc-toast">
+          {cmdListening && <div className="vc-listening"><span className="mic-dot" />{vcHeard ? t.heard(vcHeard) : t.vcListening}</div>}
+          {vcMsg && <div className="vc-result">{vcMsg}</div>}
+        </div>
       )}
 
       {/* guided product tour (spotlight) */}

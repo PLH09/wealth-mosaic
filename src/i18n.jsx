@@ -71,6 +71,9 @@ function zhSplitLabelAmount(raw) {
 function zhSplitMultiLabelAmount(raw) {
   let t = String(raw || "").trim();
   if (!t) return [];
+  // drop thousands-separator commas (ASR often returns "10,000") before commas
+  // are reinterpreted as item separators below
+  t = t.replace(/(\d)[,，](?=\d)/g, "$1");
   const SEP = "";
   const NUM = "零〇一壹二兩倆贰貳三參叁四肆五伍六陸七柒八捌九玖十拾百佰千仟萬万億亿";
   t = t
@@ -80,6 +83,9 @@ function zhSplitMultiLabelAmount(raw) {
     new RegExp("([萬万億亿千仟百佰拾kw元圓塊])\\s*(?=[\\u4e00-\\u9fa5A-Za-z])(?![" + NUM + "kw])", "g"),
     "$1" + SEP
   );
+  // break between a digit-run amount and the next item's Chinese label
+  // (handles "房租20000 餐費5000" where there's no 萬/千 magnitude marker)
+  t = t.replace(/(\d)\s+(?=[一-龥])/g, "$1" + SEP);
   return t
     .split(new RegExp(SEP + "+"))
     .map((s) => s.trim())
@@ -95,7 +101,44 @@ function zhIsNoneAnswer(raw) {
   if (!isNaN(v) && v > 0) return false;
   return /(沒有|没有|沒|無|无|不用|不需要|都沒|沒什麼|沒啥|不會|沒囉|無啦|沒啦|不知道|跳過|略過|none|nope|no|zero|nothing)/i.test(s);
 }
-const zhParser = { parseSpoken: zhParseSpoken, splitLabelAmount: zhSplitLabelAmount, splitMultiLabelAmount: zhSplitMultiLabelAmount, isNoneAnswer: zhIsNoneAnswer };
+/* Global voice command: routes a spoken phrase into an add/navigate intent.
+   e.g. "新增支出 房租 兩萬 餐費 五千" -> add two recurring expenses;
+        "去現金流" / "看投資" -> switch tab. Returns null if nothing recognized. */
+function zhParseCommand(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  let body = s.replace(/新增一筆|新增一笔|新增|增加|加入|添加|登記一下|登记一下|登記|登记|記一筆|记一笔|記一下|记一下|幫我|帮我|我要|我想|請|请|^加|加(?=[一-龥])/g, " ").trim();
+  const BUCKETS = [
+    ["recurring_income", /收入|薪水|月薪|薪資|薪资|工資|工资|進帳|进帐/],
+    ["recurring_expense", /支出|開銷|开销|花費|花费|費用|费用|帳單|账单|開支|开支|消費|消费/],
+    ["liability", /負債|负债|貸款|贷款|債務|债务|卡債|卡债|欠款|房貸|房贷|車貸|车贷/],
+    ["asset", /資產|资产|存款|現金|现金|銀行|银行|戶頭|户头|定存|儲蓄|储蓄/],
+    ["portfolio", /投資|投资|持股|股票|基金|ETF|加密|虛擬貨幣|虚拟货币|債券|债券|投組|投组/i],
+  ];
+  // "this-month variable" qualifier routes income/expense to the monthly ledger
+  // instead of the fixed/recurring one
+  const VAR_SRC = "本月變動|本月变动|本月|這個月|这个月|當月|当月|這月|这月|當期|当期|變動|变动";
+  const isVar = new RegExp(VAR_SRC).test(body);
+  body = body.replace(new RegExp(VAR_SRC, "g"), " ").trim();
+  let bucket = null;
+  for (const [b, re] of BUCKETS) { if (re.test(body)) { bucket = b; body = body.replace(re, " ").trim(); break; } }
+  if (isVar && bucket === "recurring_income") bucket = "month_income";
+  else if (isVar && bucket === "recurring_expense") bucket = "month_expense";
+  const items = zhSplitMultiLabelAmount(body);
+  if (items.length) {
+    if (!bucket) return { action: "unknown", reason: "no_bucket", text: s };
+    return { action: "add", bucket, items };
+  }
+  const NAV = [
+    ["overview", /總覽|总览|首頁|首页|概覽|概览|淨值|净值/],
+    ["cashflow", /現金流|现金流|收支|月結|月结/],
+    ["retire", /退休|財務自由|财务自由|提早退休/],
+    ["invest", /投資|投资|持股|投組|投组|資產配置|资产配置/],
+  ];
+  for (const [tab, re] of NAV) { if (re.test(s)) return { action: "nav", tab }; }
+  return null;
+}
+const zhParser = { parseSpoken: zhParseSpoken, splitLabelAmount: zhSplitLabelAmount, splitMultiLabelAmount: zhSplitMultiLabelAmount, isNoneAnswer: zhIsNoneAnswer, parseCommand: zhParseCommand };
 
 /* English spoken-number parser. */
 const EN_SMALL = {
@@ -163,6 +206,9 @@ function enSplitLabelAmount(raw) {
 function enSplitMultiLabelAmount(raw) {
   let t = String(raw || "").trim();
   if (!t) return [];
+  // drop thousands-separator commas (ASR often returns "10,000") before commas
+  // are reinterpreted as item separators below
+  t = t.replace(/(\d),(?=\d)/g, "$1");
   const SEP = " ||| ";
   const MAG = /^(?:hundred|thousand|grand|k|million|mil|m|billion|bil|b|\d+(?:\.\d+)?(?:k|m|b|mil|bil|grand))$/i;
   t = t.replace(/[,;]+/g, SEP).replace(/\band\b|\bplus\b/gi, SEP);
@@ -188,7 +234,41 @@ function enIsNoneAnswer(raw) {
   if (!isNaN(v) && v > 0) return false;
   return /\b(none|no|nope|nothing|nah|zero|skip|nada|don'?t have|do not have|haven'?t got|n\/a)\b/i.test(s);
 }
-const enParser = { parseSpoken: enParseSpoken, splitLabelAmount: enSplitLabelAmount, splitMultiLabelAmount: enSplitMultiLabelAmount, isNoneAnswer: enIsNoneAnswer };
+/* Global voice command (English). See zhParseCommand for the contract. */
+function enParseCommand(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  let body = s.replace(/\b(add|log|record|new|put|note|please|i want to|i'?d like to|can you|let'?s)\b/gi, " ").trim();
+  const BUCKETS = [
+    ["recurring_income", /\b(incomes?|salar(?:y|ies)|paychecks?|wages?|earnings?)\b/i],
+    ["recurring_expense", /\b(expenses?|spending|spend|bills?|costs?|payments?)\b/i],
+    ["liability", /\b(debts?|loans?|liabilit(?:y|ies)|mortgages?|owe[ds]?)\b/i],
+    ["asset", /\b(assets?|savings?|cash|bank|checking|deposits?)\b/i],
+    ["portfolio", /\b(investments?|invest|stocks?|shares?|funds?|holdings?|crypto|etf|bonds?|portfolio)\b/i],
+  ];
+  // "this-month / variable" qualifier routes income/expense to the monthly ledger
+  const VAR_SRC = "this month|this-month|variable";
+  const isVar = new RegExp(VAR_SRC, "i").test(body);
+  body = body.replace(new RegExp(VAR_SRC, "gi"), " ").trim();
+  let bucket = null;
+  for (const [b, re] of BUCKETS) { if (re.test(body)) { bucket = b; body = body.replace(re, " ").trim(); break; } }
+  if (isVar && bucket === "recurring_income") bucket = "month_income";
+  else if (isVar && bucket === "recurring_expense") bucket = "month_expense";
+  const items = enSplitMultiLabelAmount(body);
+  if (items.length) {
+    if (!bucket) return { action: "unknown", reason: "no_bucket", text: s };
+    return { action: "add", bucket, items };
+  }
+  const NAV = [
+    ["overview", /\b(overview|home|summary|dashboard|net worth)\b/i],
+    ["cashflow", /\bcash ?flow\b/i],
+    ["retire", /\b(retire(?:ment)?|fire)\b/i],
+    ["invest", /\b(invest(?:ments?)?|portfolio|holdings?)\b/i],
+  ];
+  for (const [tab, re] of NAV) { if (re.test(s)) return { action: "nav", tab }; }
+  return null;
+}
+const enParser = { parseSpoken: enParseSpoken, splitLabelAmount: enSplitLabelAmount, splitMultiLabelAmount: enSplitMultiLabelAmount, isNoneAnswer: enIsNoneAnswer, parseCommand: enParseCommand };
 
 /* per-locale voice config; null means typing-only (ja / ko) */
 export const VOICE = {
@@ -358,6 +438,14 @@ export const STRINGS = {
     noNewItems: "No new items added this round.",
     fillAgain: "Fill again", viewDashboard: "View dashboard",
     fallbackItem: "Item",
+    vcTitle: "Voice command",
+    vcHint: "Say “add expense rent 2000” (fixed), “add this-month expense lunch 12” (variable), or “go to cash flow”.",
+    vcListening: "Listening… say a command, tap to stop",
+    vcBuckets: { recurring_income: "fixed income", recurring_expense: "fixed expense", month_income: "this-month income", month_expense: "this-month expense", asset: "asset", liability: "debt", portfolio: "investment" },
+    vcAdded: (what, n) => `Added ${n} ${what}${n > 1 ? "s" : ""} ✓`,
+    vcNav: (where) => `Switched to ${where}`,
+    vcNoBucket: "Got the amount — say a category too, e.g. “expense”, “asset”, “investment”.",
+    vcUnrecognized: (txt) => `Didn’t catch a command in “${txt}”. Try “add income salary 5000”.`,
     speechNoSupport: "This browser does not support voice input — please type instead. Chrome or Safari work best.",
     speechCantStart: "Could not start voice — please type instead.",
     speechBlocked: "Microphone is blocked — allow mic access in your browser, or type instead.",
@@ -561,6 +649,14 @@ export const STRINGS = {
     noNewItems: "這次沒有填入新項目。",
     fillAgain: "再填一輪", viewDashboard: "看儀表板",
     fallbackItem: "項目",
+    vcTitle: "語音指令",
+    vcHint: "說「新增支出 房租兩萬」(固定)、「本月變動支出 吃飯500」(當月),或「去現金流」。",
+    vcListening: "聆聽中…說一句指令,點此停止",
+    vcBuckets: { recurring_income: "固定收入", recurring_expense: "固定支出", month_income: "本月收入", month_expense: "本月變動支出", asset: "資產", liability: "負債", portfolio: "投資" },
+    vcAdded: (what, n) => `已新增 ${n} 筆${what} ✓`,
+    vcNav: (where) => `已切換到${where}`,
+    vcNoBucket: "聽到金額了——再說一個類別,例如「支出」「資產」「投資」。",
+    vcUnrecognized: (txt) => `沒聽出指令:「${txt}」。試試「新增收入 薪水 五萬」。`,
     speechNoSupport: "這個瀏覽器不支援語音輸入,請改用打字。建議用 Chrome 或 Safari。",
     speechCantStart: "無法啟動語音,請改用打字。",
     speechBlocked: "麥克風被封鎖了,請在瀏覽器允許麥克風權限,或改用打字。",
@@ -764,6 +860,14 @@ export const STRINGS = {
     noNewItems: "这次没有填入新项目。",
     fillAgain: "再填一轮", viewDashboard: "看仪表板",
     fallbackItem: "项目",
+    vcTitle: "语音指令",
+    vcHint: "说「新增支出 房租两万」(固定)、「本月变动支出 吃饭500」(当月),或「去现金流」。",
+    vcListening: "聆听中…说一句指令,点此停止",
+    vcBuckets: { recurring_income: "固定收入", recurring_expense: "固定支出", month_income: "本月收入", month_expense: "本月变动支出", asset: "资产", liability: "负债", portfolio: "投资" },
+    vcAdded: (what, n) => `已新增 ${n} 笔${what} ✓`,
+    vcNav: (where) => `已切换到${where}`,
+    vcNoBucket: "听到金额了——再说一个类别,例如「支出」「资产」「投资」。",
+    vcUnrecognized: (txt) => `没听出指令:「${txt}」。试试「新增收入 薪水 五万」。`,
     speechNoSupport: "这个浏览器不支持语音输入,请改用打字。建议用 Chrome 或 Safari。",
     speechCantStart: "无法启动语音,请改用打字。",
     speechBlocked: "麦克风被封锁了,请在浏览器允许麦克风权限,或改用打字。",
@@ -967,6 +1071,14 @@ export const STRINGS = {
     noNewItems: "今回は新しい項目はありませんでした。",
     fillAgain: "もう一度入力", viewDashboard: "ダッシュボードを見る",
     fallbackItem: "項目",
+    vcTitle: "音声コマンド",
+    vcHint: "「支出 家賃 2万」(固定)、「今月の変動支出 ランチ 12」、または「キャッシュフローへ」のように話します。",
+    vcListening: "認識中…コマンドを話してください。タップで停止",
+    vcBuckets: { recurring_income: "固定収入", recurring_expense: "固定支出", month_income: "今月の収入", month_expense: "今月の変動支出", asset: "資産", liability: "負債", portfolio: "投資" },
+    vcAdded: (what, n) => `${what}を${n}件追加しました ✓`,
+    vcNav: (where) => `${where}に切り替えました`,
+    vcNoBucket: "金額は聞き取れました。カテゴリも言ってください(例:「支出」「資産」「投資」)。",
+    vcUnrecognized: (txt) => `コマンドを認識できません:「${txt}」。`,
     speechNoSupport: "このブラウザは音声入力に対応していません。入力してください。Chrome か Safari を推奨します。",
     speechCantStart: "音声を開始できませんでした。入力してください。",
     speechBlocked: "マイクがブロックされています。ブラウザでマイクを許可するか、入力してください。",
@@ -1170,6 +1282,14 @@ export const STRINGS = {
     noNewItems: "이번에는 새 항목이 없습니다.",
     fillAgain: "다시 입력", viewDashboard: "대시보드 보기",
     fallbackItem: "항목",
+    vcTitle: "음성 명령",
+    vcHint: "「지출 월세 2만」(고정), 「이번 달 변동 지출 점심 12」, 또는 「현금 흐름으로」처럼 말하세요.",
+    vcListening: "인식 중…명령을 말하세요. 탭하여 중지",
+    vcBuckets: { recurring_income: "고정 수입", recurring_expense: "고정 지출", month_income: "이번 달 수입", month_expense: "이번 달 변동 지출", asset: "자산", liability: "부채", portfolio: "투자" },
+    vcAdded: (what, n) => `${what} ${n}건 추가됨 ✓`,
+    vcNav: (where) => `${where}(으)로 전환했습니다`,
+    vcNoBucket: "금액은 인식했어요. 카테고리도 말해 주세요(예: 「지출」 「자산」 「투자」).",
+    vcUnrecognized: (txt) => `명령을 인식하지 못했습니다: 「${txt}」.`,
     speechNoSupport: "이 브라우저는 음성 입력을 지원하지 않습니다. 직접 입력해 주세요. Chrome 또는 Safari를 권장합니다.",
     speechCantStart: "음성을 시작할 수 없습니다. 직접 입력해 주세요.",
     speechBlocked: "마이크가 차단되었습니다. 브라우저에서 마이크를 허용하거나 직접 입력하세요.",
