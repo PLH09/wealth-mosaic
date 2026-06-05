@@ -103,6 +103,9 @@ highlights). When voice is supported for the locale (en/zh-TW/zh-CN), a **short 
 `fabPressStart/fabPressEnd/fabPressCancel` via pointer events (`fabHoldRef`/`fabLongRef`), with
 `t.fabHint` as the tooltip. For typing-only locales (ja/ko, `voice === null`) the FAB falls back to
 a plain `onClick={openQA}` (✦ icon). The old stacked ✦ + 🎙️ two-FAB layout (`.fab-cmd`) is gone.
+Because the gesture isn't obvious on touch, an always-visible `.fab-cue` chip (`t.fabCue`, with `<b>`
+markup) sits above the FAB for the first ~9s / until first use (`fabCue` state), and while listening
+the toast shows `t.vcExamples` so users know what to say.
 
 ### 5c. Global voice command (🎙️)
 

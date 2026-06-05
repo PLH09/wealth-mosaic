@@ -199,6 +199,13 @@ const buildCSS = (f) => `
 .vc-listening .mic-dot{width:9px;height:9px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
 .vc-result{background:var(--surface);border:1px solid var(--gold);color:var(--text);border-radius:12px;
   padding:9px 14px;font-size:13.5px;line-height:1.45;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);animation:rise .3s ease both;}
+.vc-examples{background:var(--surface);border:1px solid var(--line2);color:var(--muted);border-radius:12px;
+  padding:8px 13px;font-size:12.5px;line-height:1.5;max-width:300px;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);}
+/* always-visible hint so the single FAB's tap vs long-press is discoverable (incl. on touch) */
+.fab-cue{background:var(--surface);border:1px solid var(--line2);color:var(--muted);border-radius:999px;
+  padding:7px 13px;font-size:12px;line-height:1.3;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);
+  animation:rise .4s ease both;white-space:nowrap;}
+.fab-cue b{color:var(--text);font-weight:600;}
 /* guided tour */
 .tour-root{position:fixed;inset:0;z-index:9000;}
 .tour-dim{position:absolute;inset:0;background:rgba(28,22,12,.62);backdrop-filter:blur(2px);animation:fade .25s ease both;}
@@ -390,6 +397,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   // global voice command shares the single recognizer above (recogRef / listening)
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
+  const [fabCue, setFabCue] = useState(true); // brief hint explaining the FAB's tap vs long-press
   const vcMsgTimer = React.useRef(null);
   // single FAB: tap = voice, long-press = guided fill
   const fabHoldRef = React.useRef(null);
@@ -450,6 +458,13 @@ export default function FinanceDashboard({ locale = "en" }) {
       setData(DEFAULT);
     })();
   }, []);
+
+  // auto-dismiss the FAB tap/hold hint after a few seconds
+  useEffect(() => {
+    if (!fabCue) return;
+    const id = setTimeout(() => setFabCue(false), 9000);
+    return () => clearTimeout(id);
+  }, [fabCue]);
 
   const update = (patch) => {
     setData((prev) => {
@@ -646,6 +661,7 @@ export default function FinanceDashboard({ locale = "en" }) {
 
   // single FAB gesture: short tap starts voice, long-press opens guided fill
   const fabPressStart = () => {
+    setFabCue(false);
     fabLongRef.current = false;
     fabHoldRef.current = setTimeout(() => {
       fabHoldRef.current = null;
@@ -1202,11 +1218,15 @@ export default function FinanceDashboard({ locale = "en" }) {
         )
       )}
 
-      {/* voice-command live transcript + result toast */}
-      {voice && (listening || vcMsg) && !chatOpen && (
+      {/* voice-command live transcript + result toast, plus idle tap/hold cue */}
+      {voice && (listening || vcMsg || fabCue) && !chatOpen && (
         <div className="vc-toast">
           {listening && <div className="vc-listening"><span className="mic-dot" />{vcHeard ? t.heard(vcHeard) : t.vcListening}</div>}
+          {listening && !vcHeard && <div className="vc-examples">{t.vcExamples}</div>}
           {vcMsg && <div className="vc-result">{vcMsg}</div>}
+          {!listening && !vcMsg && fabCue && (
+            <div className="fab-cue" dangerouslySetInnerHTML={{ __html: t.fabCue }} />
+          )}
         </div>
       )}
 
