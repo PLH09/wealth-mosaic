@@ -188,12 +188,11 @@ const buildCSS = (f) => `
   background:linear-gradient(160deg,var(--gold2),var(--gold));color:#1b1610;font-size:22px;cursor:pointer;z-index:40;
   box-shadow:0 12px 30px -8px rgba(194,151,47,.5);transition:.2s;animation:rise .5s ease both;}
 .fab:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 16px 36px -8px rgba(194,151,47,.65);}
-/* global voice-command FAB sits just above the guided-fill FAB */
-.fab-cmd{bottom:88px;background:var(--surface);border:1px solid var(--line2);color:var(--text);font-size:20px;
-  box-shadow:0 10px 26px -10px rgba(0,0,0,.5);}
-.fab-cmd:hover{border-color:var(--gold);transform:translateY(-2px) scale(1.04);}
-.fab-cmd.on{border-color:var(--red);color:var(--red);background:rgba(196,92,54,.12);animation:pulse 1.1s infinite;}
-.vc-toast{position:fixed;right:22px;bottom:152px;z-index:41;max-width:min(320px,calc(100vw - 44px));
+.fab{touch-action:none;-webkit-user-select:none;user-select:none;}
+/* listening state for the single FAB (tap = voice) */
+.fab.on{background:rgba(196,92,54,.14);border-color:var(--red);color:var(--red);
+  box-shadow:0 12px 30px -8px rgba(196,92,54,.5);animation:pulse 1.1s infinite;}
+.vc-toast{position:fixed;right:22px;bottom:92px;z-index:41;max-width:min(320px,calc(100vw - 44px));
   display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none;}
 .vc-listening{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--red);
   color:var(--text);border-radius:999px;padding:8px 14px;font-size:13px;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);}
@@ -392,6 +391,9 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
   const vcMsgTimer = React.useRef(null);
+  // single FAB: tap = voice, long-press = guided fill
+  const fabHoldRef = React.useRef(null);
+  const fabLongRef = React.useRef(false);
   const fileRef = React.useRef(null);
   const voicesRef = React.useRef([]);
   const speakCancelRef = React.useRef(false);
@@ -640,6 +642,25 @@ export default function FinanceDashboard({ locale = "en" }) {
     };
     rec.onend = () => setListening(false);
     try { rec.start(); setListening(true); } catch { voiceErr(t.speechCantStart); }
+  };
+
+  // single FAB gesture: short tap starts voice, long-press opens guided fill
+  const fabPressStart = () => {
+    fabLongRef.current = false;
+    fabHoldRef.current = setTimeout(() => {
+      fabHoldRef.current = null;
+      fabLongRef.current = true;
+      openQA();
+    }, 500);
+  };
+  const fabPressEnd = () => {
+    if (fabHoldRef.current) { clearTimeout(fabHoldRef.current); fabHoldRef.current = null; }
+    if (fabLongRef.current) { fabLongRef.current = false; return; }
+    startVoice();
+  };
+  const fabPressCancel = () => {
+    if (fabHoldRef.current) { clearTimeout(fabHoldRef.current); fabHoldRef.current = null; }
+    fabLongRef.current = false;
   };
 
   // apply a parsed "add" command into the right data bucket
@@ -1163,19 +1184,22 @@ export default function FinanceDashboard({ locale = "en" }) {
         )}
       </div>
 
-      {/* floating guided-fill button (kept visible during the tour so it can be highlighted) */}
+      {/* single floating action button (kept visible during the tour so it can be highlighted).
+          With voice: tap = speak a command, long-press = guided fill. Without voice: tap = guided fill. */}
       {!chatOpen && (
-        <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
-      )}
-
-      {/* floating global voice-command button (only when speech is supported for this locale) */}
-      {voice && !chatOpen && (
-        <button
-          className={"fab fab-cmd " + (listening ? "on" : "")}
-          onClick={startVoice}
-          aria-label={t.vcTitle}
-          title={t.vcHint}
-        >🎙️</button>
+        voice ? (
+          <button
+            className={"fab " + (listening ? "on" : "")}
+            onPointerDown={fabPressStart}
+            onPointerUp={fabPressEnd}
+            onPointerLeave={fabPressCancel}
+            onContextMenu={(e) => e.preventDefault()}
+            aria-label={t.vcTitle}
+            title={t.fabHint}
+          >🎙️</button>
+        ) : (
+          <button className="fab" onClick={openQA} aria-label={t.guidedTitle}>✦</button>
+        )
       )}
 
       {/* voice-command live transcript + result toast */}

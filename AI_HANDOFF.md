@@ -94,8 +94,15 @@ Each question has a `target` describing where the answer is written (e.g.
 but three lighter voice features remain: (1) the guided-fill **🎤 mic** (Web Speech
 `SpeechRecognition`) that fills the highlighted blank from spoken numbers, (2) the header
 **🔊 Voice recap** (Web Speech `speechSynthesis`) that reads the financial story aloud, and
-(3) the **🎙️ global voice command** FAB (bottom-right, above the ✦ FAB). Both
+(3) the **🎙️ global voice command** on the single bottom-right FAB. Both
 degrade gracefully (no-op / alert) on browsers without Web Speech support.
+
+**One FAB, two gestures.** There is a single floating action button (`.fab`, the element the tour
+highlights). When voice is supported for the locale (en/zh-TW/zh-CN), a **short tap** starts voice
+(`startVoice`) and a **long-press (≥500ms)** opens guided fill (`openQA`) — handled by
+`fabPressStart/fabPressEnd/fabPressCancel` via pointer events (`fabHoldRef`/`fabLongRef`), with
+`t.fabHint` as the tooltip. For typing-only locales (ja/ko, `voice === null`) the FAB falls back to
+a plain `onClick={openQA}` (✦ icon). The old stacked ✦ + 🎙️ two-FAB layout (`.fab-cmd`) is gone.
 
 ### 5c. Global voice command (🎙️)
 
