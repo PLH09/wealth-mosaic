@@ -363,7 +363,7 @@ export const STRINGS = {
         { title: "Welcome to your finance dashboard", body: "A 30-second tour of the essentials. Everything stays on your device — nothing is uploaded." },
         { title: "Four focused sections", body: "Switch between Overview, Cash Flow, Investments and Retirement here. Each gives a clear, plain-language read on your money." },
         { title: "Your live net worth", body: "This figure updates instantly as you edit your assets and debts, so you always know where you stand." },
-        { title: "Fill in your numbers fast", body: "Tap the ✦ button to answer a few simple questions and your dashboard fills itself in — no spreadsheets needed." },
+        { title: "Fill in your numbers fast", body: "Tap the 🎙️ button and just say your numbers out loud, or press and hold it to type your answers to a few quick questions — either way your dashboard fills itself in, no spreadsheets needed." },
         { title: "Backups & more", body: "Open this menu to import or export a backup, clear everything, or replay this tour anytime." },
         { title: "Five languages", body: "Switch the interface between English, 繁體中文, 简体中文, 日本語 and 한국어 whenever you like." },
         { title: "You're all set", body: "Explore freely — your data is saved automatically in this browser. Enjoy taking charge of your finances!" },
@@ -415,7 +415,7 @@ export const STRINGS = {
     goalName: "Goal name", goalTargetPH: "Target amount", goalSavedPH: "Saved so far", addGoal: "Add goal",
     defaultMilestone: { label: "First $100K", target: 100000 },
     insight: (v, H) => v.empty ? (
-      <>Nothing here yet. Tap {b("✦ Guided fill")} to answer a few quick questions and build your dashboard. Your data stays in this browser.</>
+      <>Nothing here yet. Tap the {b("🎙️")} button to say your numbers out loud, or hold it for {b("guided fill")}, to build your dashboard. Your data stays in this browser.</>
     ) : v.stalled ? (
       <>Your spending is at or above your income, so the wealth engine has stalled. Start by cutting one or two {b("recurring expenses")} — that keeps saving you money every month.</>
     ) : (
@@ -577,7 +577,7 @@ export const STRINGS = {
         { title: "歡迎使用你的財務儀表板", body: "30 秒快速導覽重點功能。所有資料只留在你的裝置上,不會上傳。" },
         { title: "四個重點分頁", body: "在這裡切換總覽、現金流、投資與退休。每個分頁都用白話幫你看懂自己的財務狀況。" },
         { title: "即時淨值", body: "當你編輯資產與負債時,這個數字會立即更新,讓你隨時掌握現況。" },
-        { title: "快速填入你的數字", body: "點這顆 ✦ 按鈕回答幾個簡單問題,儀表板就會自動幫你填好,不必碰試算表。" },
+        { title: "快速填入你的數字", body: "點 🎙️ 按鈕直接用說的把數字唸出來,或長按它用打字回答幾個簡單問題——兩種方式都會自動幫你把儀表板填好,不必碰試算表。" },
         { title: "備份與更多功能", body: "打開這個選單可匯入或匯出備份、清除全部,或隨時重看本導覽。" },
         { title: "五種語言", body: "隨時可把介面切換成 English、繁體中文、简体中文、日本語 或 한국어。" },
         { title: "一切就緒", body: "盡情探索吧 —— 你的資料會自動存在這個瀏覽器裡。祝你掌握理財、輕鬆自在!" },
@@ -629,7 +629,7 @@ export const STRINGS = {
     goalName: "目標名稱", goalTargetPH: "目標金額", goalSavedPH: "已存金額", addGoal: "新增目標",
     defaultMilestone: { label: "第一桶金", target: 1000000 },
     insight: (v, H) => v.empty ? (
-      <>目前還沒有資料。點 {b("✦ 引導填寫")} 回答幾個簡單問題,即可建立你的儀表板。你的資料只會留在這個瀏覽器。</>
+      <>目前還沒有資料。點 {b("🎙️")} 按鈕用說的把數字唸出來,或長按開{b("引導填寫")},即可建立你的儀表板。你的資料只會留在這個瀏覽器。</>
     ) : v.stalled ? (
       <>本月支出大於或等於收入,財富累積的引擎停住了。先從砍掉一兩項{b("固定支出")}開始 —— 那會每個月持續幫你存下錢。</>
     ) : (
@@ -791,7 +791,7 @@ export const STRINGS = {
         { title: "欢迎使用你的财务仪表板", body: "30 秒快速导览重点功能。所有数据只留在你的设备上,不会上传。" },
         { title: "四个重点分页", body: "在这里切换总览、现金流、投资与退休。每个分页都用大白话帮你看懂自己的财务状况。" },
         { title: "实时净值", body: "当你编辑资产与负债时,这个数字会立即更新,让你随时掌握现状。" },
-        { title: "快速填入你的数字", body: "点这颗 ✦ 按钮回答几个简单问题,仪表板就会自动帮你填好,不必碰电子表格。" },
+        { title: "快速填入你的数字", body: "点 🎙️ 按钮直接用说的把数字念出来,或长按它用打字回答几个简单问题——两种方式都会自动帮你把仪表板填好,不必碰电子表格。" },
         { title: "备份与更多功能", body: "打开这个菜单可导入或导出备份、清除全部,或随时重看本导览。" },
         { title: "五种语言", body: "随时可把界面切换成 English、繁體中文、简体中文、日本語 或 한국어。" },
         { title: "一切就绪", body: "尽情探索吧 —— 你的数据会自动存在这个浏览器里。祝你轻松掌握理财!" },
@@ -843,7 +843,7 @@ export const STRINGS = {
     goalName: "目标名称", goalTargetPH: "目标金额", goalSavedPH: "已存金额", addGoal: "新增目标",
     defaultMilestone: { label: "第一桶金", target: 1000000 },
     insight: (v, H) => v.empty ? (
-      <>目前还没有数据。点 {b("✦ 引导填写")} 回答几个简单问题,即可建立你的仪表板。你的数据只会留在这个浏览器。</>
+      <>目前还没有数据。点 {b("🎙️")} 按钮用说的把数字念出来,或长按打开{b("引导填写")},即可建立你的仪表板。你的数据只会留在这个浏览器。</>
     ) : v.stalled ? (
       <>本月支出大于或等于收入,财富累积的引擎停住了。先从砍掉一两项{b("固定支出")}开始 —— 那会每个月持续帮你存下钱。</>
     ) : (
