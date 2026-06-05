@@ -388,11 +388,9 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [heard, setHeard] = useState("");
   const [speechErr, setSpeechErr] = useState("");
   const recogRef = React.useRef(null);
-  // global voice command (separate recognizer from guided-fill mic)
-  const [cmdListening, setCmdListening] = useState(false);
+  // global voice command shares the single recognizer above (recogRef / listening)
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
-  const cmdRecogRef = React.useRef(null);
   const vcMsgTimer = React.useRef(null);
   const fileRef = React.useRef(null);
   const voicesRef = React.useRef([]);
@@ -529,7 +527,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   const setActive = (i) => { activeIdxRef.current = i; setActiveIdx(i); };
 
   const openQA = () => {
-    stopVoiceCmd();
+    stopVoice();
     setQuickVals(blankQuick());
     setActive(0); setQaLog([]); setQaDone(false);
     setHeard(""); setSpeechErr(""); setChatOpen(true);
@@ -594,48 +592,54 @@ export default function FinanceDashboard({ locale = "en" }) {
     }
   };
 
-  // one continuous mic that fills blanks one after another
-  const startQuickVoice = () => {
-    if (!voice) return;
-    setSpeechErr("");
-    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SR) { setSpeechErr(t.speechNoSupport); return; }
-    if (listening) { stopVoice(); return; }
-    let rec;
-    try { rec = new SR(); } catch { setSpeechErr(t.speechCantStart); return; }
-    rec.lang = voice.lang;
-    rec.interimResults = true;
-    rec.continuous = true;
-    rec.maxAlternatives = 1;
-    recogRef.current = rec;
-    setHeard("");
-    rec.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        const txt = r[0].transcript;
-        setHeard(txt);
-        if (r.isFinal) { setSpeechErr(""); fillFromSpeech(txt.trim()); }
-      }
-    };
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") { setListening(false); setSpeechErr(t.speechBlocked); }
-      else if (e.error === "no-speech") { /* keep listening in continuous mode */ }
-      else setSpeechErr(t.speechStopped);
-    };
-    rec.onend = () => setListening(false);
-    try { rec.start(); setListening(true); } catch { setSpeechErr(t.speechCantStart); }
-  };
-
-  // ---- global voice command (works on any tab, no edit mode) ----
   const flashVcMsg = (msg) => {
     setVcMsg(msg);
     if (vcMsgTimer.current) clearTimeout(vcMsgTimer.current);
     vcMsgTimer.current = setTimeout(() => setVcMsg(""), 4200);
   };
 
-  const stopVoiceCmd = () => {
-    try { cmdRecogRef.current && cmdRecogRef.current.stop(); } catch { /* noop */ }
-    setCmdListening(false);
+  // route an error to wherever the mic was started from
+  const voiceErr = (msg) => { if (chatOpen) setSpeechErr(msg); else flashVcMsg(msg); };
+
+  // one finalized utterance: fill the active blank inside guided-fill,
+  // otherwise treat it as a global voice command (works on any tab, no edit mode)
+  const onVoiceFinal = (txt) => {
+    if (chatOpen && !qaDone) { setSpeechErr(""); fillFromSpeech(txt); return; }
+    const cmd = voice.parser.parseCommand(txt);
+    if (cmd) { applyVoiceCommand(cmd); setVcHeard(""); }
+    else flashVcMsg(t.vcUnrecognized(txt));
+  };
+
+  // single continuous mic shared by guided-fill and global commands
+  const startVoice = () => {
+    if (!voice) return;
+    if (listening) { stopVoice(); return; }
+    setSpeechErr("");
+    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SR) { voiceErr(t.speechNoSupport); return; }
+    let rec;
+    try { rec = new SR(); } catch { voiceErr(t.speechCantStart); return; }
+    rec.lang = voice.lang;
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.maxAlternatives = 1;
+    recogRef.current = rec;
+    setHeard(""); setVcHeard("");
+    rec.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        const txt = r[0].transcript;
+        if (chatOpen && !qaDone) setHeard(txt); else setVcHeard(txt);
+        if (r.isFinal) onVoiceFinal(txt.trim());
+      }
+    };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { setListening(false); voiceErr(t.speechBlocked); }
+      else if (e.error === "no-speech") { /* keep listening in continuous mode */ }
+      else if (chatOpen) setSpeechErr(t.speechStopped);
+    };
+    rec.onend = () => setListening(false);
+    try { rec.start(); setListening(true); } catch { voiceErr(t.speechCantStart); }
   };
 
   // apply a parsed "add" command into the right data bucket
@@ -669,39 +673,6 @@ export default function FinanceDashboard({ locale = "en" }) {
     const tabFor = { recurring_income: "cashflow", recurring_expense: "cashflow", month_income: "cashflow", month_expense: "cashflow", asset: "overview", liability: "overview", portfolio: "invest" };
     if (tabFor[cmd.bucket]) setTab(tabFor[cmd.bucket]);
     flashVcMsg(t.vcAdded(t.vcBuckets[cmd.bucket] || "", n));
-  };
-
-  const startVoiceCmd = () => {
-    if (!voice) return;
-    if (cmdListening) { stopVoiceCmd(); return; }
-    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SR) { flashVcMsg(t.speechNoSupport); return; }
-    let rec;
-    try { rec = new SR(); } catch { flashVcMsg(t.speechCantStart); return; }
-    rec.lang = voice.lang;
-    rec.interimResults = true;
-    rec.continuous = true;
-    rec.maxAlternatives = 1;
-    cmdRecogRef.current = rec;
-    setVcHeard("");
-    rec.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        const txt = r[0].transcript;
-        setVcHeard(txt);
-        if (r.isFinal) {
-          const cmd = voice.parser.parseCommand(txt.trim());
-          if (cmd) { applyVoiceCommand(cmd); setVcHeard(""); }
-          else flashVcMsg(t.vcUnrecognized(txt.trim()));
-        }
-      }
-    };
-    rec.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") { setCmdListening(false); flashVcMsg(t.speechBlocked); }
-      else if (e.error === "no-speech") { /* keep listening */ }
-    };
-    rec.onend = () => setCmdListening(false);
-    try { rec.start(); setCmdListening(true); } catch { flashVcMsg(t.speechCantStart); }
   };
 
   // commit every filled blank at once
@@ -1200,17 +1171,17 @@ export default function FinanceDashboard({ locale = "en" }) {
       {/* floating global voice-command button (only when speech is supported for this locale) */}
       {voice && !chatOpen && (
         <button
-          className={"fab fab-cmd " + (cmdListening ? "on" : "")}
-          onClick={startVoiceCmd}
+          className={"fab fab-cmd " + (listening ? "on" : "")}
+          onClick={startVoice}
           aria-label={t.vcTitle}
           title={t.vcHint}
         >🎙️</button>
       )}
 
       {/* voice-command live transcript + result toast */}
-      {voice && (cmdListening || vcMsg) && !chatOpen && (
+      {voice && (listening || vcMsg) && !chatOpen && (
         <div className="vc-toast">
-          {cmdListening && <div className="vc-listening"><span className="mic-dot" />{vcHeard ? t.heard(vcHeard) : t.vcListening}</div>}
+          {listening && <div className="vc-listening"><span className="mic-dot" />{vcHeard ? t.heard(vcHeard) : t.vcListening}</div>}
           {vcMsg && <div className="vc-result">{vcMsg}</div>}
         </div>
       )}
@@ -1245,7 +1216,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                   <div className="qa-hint" style={{ marginBottom: 4 }}>{t.quickAppendNote}</div>
                   {voice && (
                     <div className="quick-mic-row">
-                      <button className={"mic " + (listening ? "on" : "")} onClick={listening ? stopVoice : startQuickVoice}>
+                      <button className={"mic " + (listening ? "on" : "")} onClick={startVoice}>
                         <span className="mic-dot" />
                         {listening ? t.quickListening : t.quickStart}
                       </button>

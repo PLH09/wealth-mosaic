@@ -111,6 +111,13 @@ parser handles: ASR thousands-separator commas are stripped before splitting (so
 10000), and bare-digit multi-items are broken on digit→CJK boundaries. All copy is per-locale
 (`vcTitle, vcHint, vcListening, vcBuckets, vcAdded, vcNav, vcNoBucket, vcUnrecognized`).
 
+**Single shared recognizer.** The guided-fill 🎤 mic and the global 🎙️ FAB are NOT two engines —
+they share ONE `SpeechRecognition` (`startVoice()` / `stopVoice()` / `recogRef` / `listening`).
+`onVoiceFinal(txt)` routes by context: if the guided-fill modal is open (`chatOpen && !qaDone`) it
+calls `fillFromSpeech` (fill the active blank); otherwise it runs `parseCommand` → `applyVoiceCommand`.
+Errors route via `voiceErr` (in-form `speechErr` when the modal is open, else a `.vc-toast`). This
+avoids two recognizers fighting over the mic.
+
 ### 5b. Guided product tour (導覽)
 
 Spotlight onboarding tour in `FinanceDashboard.jsx` (`Tour` component + `TOUR_SELECTORS`).
