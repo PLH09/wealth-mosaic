@@ -56,8 +56,17 @@ user-facing text). When you add a UI string, add it to **all 5 locales**.
   `--bg --surface --ink --line --line2 --gold --gold2 --text --muted --dim --green --red --serif --sans`.
 - `PIE_COLORS = ["#c2972f","#3c8a5f","#c45c36","#9a8fd6","#6fb0c9","#d6b85a","#897c64"]`.
 - **`calc`** (memoized) is the derived-state object used everywhere:
-  `{ m, income, expense, net, rate, assets, liab, netWorth, invest, histArr, incFixed, expFixed }`.
+  `{ m, income, expense, net, rate, assets, liab, netWorth, invest, investBeyondAssets, histArr, incFixed, expFixed }`.
   `calc.m = { income[], expenses[] }` for the selected month; `calc.expFixed = Σ recurring.expenses`.
+- **Net worth INCLUDES investments** (the portfolio). `calc.invest = Σ data.portfolio`. The portfolio
+  and any balance-sheet asset rows in the **`ASSET_TYPES[2]` ("Investments")** category describe the
+  same money, so `calc.assets = Σ data.assets − Σ(invest-category asset rows) + max(invest, Σ invest-category rows)`
+  — investments are counted **exactly once** (never double-counted, never dropped). `calc.netWorth = assets − liab`.
+  `calc.investBeyondAssets = max(0, invest − Σ invest-category rows)` is the portfolio value not yet
+  mirrored as a balance-sheet row; Overview surfaces it as a synthetic "Investments" slice in the
+  asset-mix donut + a read-only line (label `t.investFromHoldings`) so the balance sheet matches the
+  net-worth total. (This fixed a bug where guided-fill investments — written only to `portfolio` —
+  were excluded from net worth.)
 - **Item shape**: `{ id, label, value, category? }`. Categories come from
   `t.cats.expense` / `t.cats.asset` / `t.cats.invest`. NOTE: assets use the **`category`**
   field (a previous bug stored them under `type` — now unified to `category`).
@@ -166,8 +175,11 @@ in each locale's `t.tour` ({ menu, next, back, skip, done, stepOf, steps[] }).
   `.fd-net` (CSS uppercases the label).
 - **Guided fill is append-only** (`applyUpdates` spreads `[...prev, ...new]`, never deletes;
   blank inputs are skipped). The modal shows `t.quickAppendNote` to make this explicit.
-- **Investments "Share of assets"** = `calc.invest / calc.assets` (clamped to 100%). Holdings
-  and balance-sheet assets are meant to be kept in sync (`t.investNote`), NOT separate ledgers.
+- **Investments "Share of assets"** = `calc.invest / calc.assets` (still clamped to 100% as a guard).
+  Since `calc.assets` now folds the portfolio in (see §3), this is consistent and the clamp rarely
+  fires. The portfolio is the source of truth for investments; `t.investNote` tells users they're
+  auto-counted toward net worth and need NOT be re-entered as a balance-sheet asset (re-entering is
+  still safe — the dedup `max()` prevents double-counting).
 
 ---
 

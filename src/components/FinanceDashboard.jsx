@@ -774,13 +774,21 @@ export default function FinanceDashboard({ locale = "en" }) {
     const expense = expFixed + sum(m.expenses);
     const net = income - expense;
     const rate = income > 0 ? (net / income) * 100 : 0;
-    const assets = sum(data.assets);
+    const invest = sum(data.portfolio);
+    // The Investments tab (portfolio) and any "Investments"-category balance-sheet
+    // rows describe the SAME money. Count it exactly once toward net worth: take the
+    // larger of the two so investments are never double-counted nor dropped.
+    const investCat = ASSET_TYPES[2];
+    const assetInvestRows = sum(data.assets.filter((a) => (a.category || "") === investCat));
+    const investTotal = Math.max(invest, assetInvestRows);
+    // investments held only in the portfolio (not yet mirrored as a balance-sheet row)
+    const investBeyondAssets = Math.max(0, invest - assetInvestRows);
+    const assets = sum(data.assets) - assetInvestRows + investTotal;
     const liab = sum(data.liabilities);
     const netWorth = assets - liab;
-    const invest = sum(data.portfolio);
     const histArr = Object.keys(data.netWorthHistory).sort()
       .map((k) => ({ m: k.slice(2), v: data.netWorthHistory[k] }));
-    return { m, income, expense, net, rate, assets, liab, netWorth, invest, histArr, incFixed, expFixed };
+    return { m, income, expense, net, rate, assets, liab, netWorth, invest, investBeyondAssets, histArr, incFixed, expFixed };
   }, [data, month]);
 
   if (!data || !calc) {
@@ -970,12 +978,17 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div className="card">
               <div className="sec-h"><div className="sec-t">{t.secBalanceSheet}</div></div>
               {(() => {
-                const cats = new Set(data.assets.map((e) => e.category || ASSET_TYPES[ASSET_TYPES.length - 1]));
-                if (data.assets.length === 0 || cats.size < 2) return null;
+                // include portfolio holdings (not yet mirrored as a balance-sheet row)
+                // as a synthetic "Investments" slice so the mix matches total assets
+                const mixAssets = calc.investBeyondAssets > 0
+                  ? [...data.assets, { id: "__inv__", label: ASSET_TYPES[2], value: calc.investBeyondAssets, category: ASSET_TYPES[2] }]
+                  : data.assets;
+                const cats = new Set(mixAssets.map((e) => e.category || ASSET_TYPES[ASSET_TYPES.length - 1]));
+                if (mixAssets.length === 0 || cats.size < 2) return null;
                 return (
                   <div style={{ marginBottom: 18, paddingBottom: 18, borderBottom: "1px dashed var(--line)" }}>
                     <div className="kpi-l" style={{ marginBottom: 12 }}>{t.assetMixLabel}</div>
-                    <CategoryDonut items={data.assets} cur={cur} t={t} fallback={ASSET_TYPES[ASSET_TYPES.length - 1]} />
+                    <CategoryDonut items={mixAssets} cur={cur} t={t} fallback={ASSET_TYPES[ASSET_TYPES.length - 1]} />
                   </div>
                 );
               })()}
@@ -984,6 +997,13 @@ export default function FinanceDashboard({ locale = "en" }) {
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secAssets}</div>
                   <MoneyList items={data.assets} categories={ASSET_TYPES} accent="var(--green)" cur={cur} t={t} editing={editing}
                     onChange={(v) => setAssetsLiab("assets", v)} />
+                  {calc.investBeyondAssets > 0 && (
+                    <div className="row" title={t.investFromHoldings}>
+                      <div className="lbl">{ASSET_TYPES[2]}<span className="cat">{t.investFromHoldings}</span></div>
+                      <div className="amt" style={{ color: "var(--green)" }}>{money(calc.investBeyondAssets, cur)}</div>
+                      <span />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.secLiabilities}</div>
