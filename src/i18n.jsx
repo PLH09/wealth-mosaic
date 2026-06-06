@@ -575,8 +575,9 @@ export const STRINGS = {
       }
       if (tab === "retire") {
         const r = data.retire || {};
-        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
-        if (!(spend > 0 && wr > 0)) return "Tell me your target monthly spending in retirement, and I'll estimate the nest egg you'll need.";
+        const spend = Number(r.monthlySpend);
+        const wr = Number(r.withdrawalRate) > 0 ? Number(r.withdrawalRate) : 4;
+        if (!(spend > 0)) return "Tell me your target monthly spending in retirement, and I'll estimate the nest egg you'll need.";
         const fi = (spend * 12) / (wr / 100);
         return `To spend ${n(spend)} a month in retirement, you'd need about ${n(fi)} to buy back your freedom from money worries. Every step today paves the road for your future self.`;
       }
@@ -830,8 +831,9 @@ export const STRINGS = {
       }
       if (tab === "retire") {
         const r = data.retire || {};
-        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
-        if (!(spend > 0 && wr > 0)) return "告訴我你退休後每月想花多少,我就能估算你需要準備的金額。";
+        const spend = Number(r.monthlySpend);
+        const wr = Number(r.withdrawalRate) > 0 ? Number(r.withdrawalRate) : 4;
+        if (!(spend > 0)) return "告訴我你退休後每月想花多少,我就能估算你需要準備的金額。";
         const fi = (spend * 12) / (wr / 100);
         return `若你想往後每月安穩花用 ${sayNum(spend)},大約準備 ${sayNum(fi)},就能換來不再為錢焦慮的自由。你今天的每一步,都在替未來的自己鋪路。`;
       }
@@ -1085,8 +1087,9 @@ export const STRINGS = {
       }
       if (tab === "retire") {
         const r = data.retire || {};
-        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
-        if (!(spend > 0 && wr > 0)) return "告诉我你退休后每月想花多少,我就能估算你需要准备的金额。";
+        const spend = Number(r.monthlySpend);
+        const wr = Number(r.withdrawalRate) > 0 ? Number(r.withdrawalRate) : 4;
+        if (!(spend > 0)) return "告诉我你退休后每月想花多少,我就能估算你需要准备的金额。";
         const fi = (spend * 12) / (wr / 100);
         return `若你想往后每月安稳花用 ${sayNum(spend)},大约准备 ${sayNum(fi)},就能换来不再为钱焦虑的自由。你今天的每一步,都在替未来的自己铺路。`;
       }
@@ -1340,8 +1343,9 @@ export const STRINGS = {
       }
       if (tab === "retire") {
         const r = data.retire || {};
-        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
-        if (!(spend > 0 && wr > 0)) return "退職後に毎月いくら使いたいか教えてください。必要な資金を見積もります。";
+        const spend = Number(r.monthlySpend);
+        const wr = Number(r.withdrawalRate) > 0 ? Number(r.withdrawalRate) : 4;
+        if (!(spend > 0)) return "退職後に毎月いくら使いたいか教えてください。必要な資金を見積もります。";
         const fi = (spend * 12) / (wr / 100);
         return `これから毎月 ${sayNum(spend)} を安心して使うには、およそ ${sayNum(fi)} あれば、お金の不安から自由になれます。今日の一歩一歩が未来の自分への道を作ります。`;
       }
@@ -1595,8 +1599,9 @@ export const STRINGS = {
       }
       if (tab === "retire") {
         const r = data.retire || {};
-        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
-        if (!(spend > 0 && wr > 0)) return "은퇴 후 매월 얼마를 쓰고 싶은지 알려주시면 필요한 자금을 추정해 드릴게요.";
+        const spend = Number(r.monthlySpend);
+        const wr = Number(r.withdrawalRate) > 0 ? Number(r.withdrawalRate) : 4;
+        if (!(spend > 0)) return "은퇴 후 매월 얼마를 쓰고 싶은지 알려주시면 필요한 자금을 추정해 드릴게요.";
         const fi = (spend * 12) / (wr / 100);
         return `앞으로 매월 ${sayNum(spend)}을 마음 편히 쓰려면 약 ${sayNum(fi)}이 있으면 돈 걱정에서 자유로워집니다. 오늘의 한 걸음 한 걸음이 미래의 당신을 위한 길을 닦습니다.`;
       }

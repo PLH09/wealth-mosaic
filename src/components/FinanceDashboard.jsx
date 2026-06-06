@@ -490,6 +490,16 @@ export default function FinanceDashboard({ locale = "en" }) {
     });
   };
 
+  // Net worth, computed identically to `calc` so the KPI, the trend-chart
+  // history snapshots and any other consumer always agree. Investments live in
+  // the portfolio AND/OR as an "Investments"-category asset row — count them once
+  // (the larger of the two) so they're never double-counted nor dropped.
+  const netWorthOf = (d) => {
+    const inv = sum(d.portfolio);
+    const investRows = sum((d.assets || []).filter((a) => (a.category || "") === ASSET_TYPES[2]));
+    return sum(d.assets) - investRows + Math.max(inv, investRows) - sum(d.liabilities);
+  };
+
   const exportData = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -521,8 +531,16 @@ export default function FinanceDashboard({ locale = "en" }) {
   const setAssetsLiab = (key, list) => {
     update((prev) => {
       const next = { ...prev, [key]: list };
-      const nw = sum(next.assets) - sum(next.liabilities);
-      next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: nw };
+      next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: netWorthOf(next) };
+      return next;
+    });
+  };
+
+  // editing holdings also moves net worth now, so snapshot the trend too
+  const setPortfolio = (list) => {
+    update((prev) => {
+      const next = { ...prev, portfolio: list };
+      next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: netWorthOf(next) };
       return next;
     });
   };
@@ -530,27 +548,28 @@ export default function FinanceDashboard({ locale = "en" }) {
   const cur = "$";
 
   const applyUpdates = (u) => {
-    if (!u) return [];
+    if (!u || !data) return [];
     const summary = [];
     const tag = (arr) => (arr || []).map((x) => ({ ...x, id: uid() }));
-    update((prev) => {
-      const next = { ...prev };
-      next.recurring = { ...prev.recurring };
-      if (u.recurring_income?.length) { next.recurring.income = [...prev.recurring.income, ...tag(u.recurring_income)]; u.recurring_income.forEach((x) => summary.push(`${t.recurringIncome} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.recurring_expenses?.length) { next.recurring.expenses = [...prev.recurring.expenses, ...tag(u.recurring_expenses)]; u.recurring_expenses.forEach((x) => summary.push(`${t.recurringExpenses} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.month_income?.length) { const m = prev.months[month] || { income: [], expenses: [] }; next.months = { ...prev.months, [month]: { ...m, income: [...m.income, ...tag(u.month_income)] } }; u.month_income.forEach((x) => summary.push(`${t.extraIncome} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.month_expenses?.length) { const m = next.months?.[month] || prev.months[month] || { income: [], expenses: [] }; next.months = { ...(next.months || prev.months), [month]: { ...m, expenses: [...m.expenses, ...tag(u.month_expenses)] } }; u.month_expenses.forEach((x) => summary.push(`${t.variableSpending} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.assets?.length) { next.assets = [...prev.assets, ...tag(u.assets)]; u.assets.forEach((x) => summary.push(`${t.secAssets} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.liabilities?.length) { next.liabilities = [...prev.liabilities, ...tag(u.liabilities)]; u.liabilities.forEach((x) => summary.push(`${t.secLiabilities} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.portfolio?.length) { next.portfolio = [...prev.portfolio, ...tag(u.portfolio)]; u.portfolio.forEach((x) => summary.push(`${t.secHoldings} "${x.label}" ${money(x.value, cur)}`)); }
-      if (u.goals?.length) { next.goals = [...prev.goals, ...tag(u.goals)]; u.goals.forEach((x) => summary.push(`${t.secFinancialGoals} "${x.label}" ${money(x.target, cur)}`)); }
-      if (u.retire && Object.keys(u.retire).length) { next.retire = { ...prev.retire, ...u.retire }; summary.push(t.retInputs); }
-      if (next.assets !== prev.assets || next.liabilities !== prev.liabilities) {
-        next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: sum(next.assets) - sum(next.liabilities) };
-      }
-      store.set(KEY, JSON.stringify(next));
-      return next;
-    });
+    // Build the next state PURELY (outside setData) so the summary is computed
+    // exactly once — React StrictMode double-invokes setData updaters in dev, which
+    // previously doubled every entry in the "what was added" list.
+    const prev = data;
+    const next = { ...prev, recurring: { ...prev.recurring } };
+    if (u.recurring_income?.length) { next.recurring.income = [...prev.recurring.income, ...tag(u.recurring_income)]; u.recurring_income.forEach((x) => summary.push(`${t.recurringIncome} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.recurring_expenses?.length) { next.recurring.expenses = [...prev.recurring.expenses, ...tag(u.recurring_expenses)]; u.recurring_expenses.forEach((x) => summary.push(`${t.recurringExpenses} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.month_income?.length) { const m = prev.months[month] || { income: [], expenses: [] }; next.months = { ...prev.months, [month]: { ...m, income: [...m.income, ...tag(u.month_income)] } }; u.month_income.forEach((x) => summary.push(`${t.extraIncome} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.month_expenses?.length) { const m = next.months?.[month] || prev.months[month] || { income: [], expenses: [] }; next.months = { ...(next.months || prev.months), [month]: { ...m, expenses: [...m.expenses, ...tag(u.month_expenses)] } }; u.month_expenses.forEach((x) => summary.push(`${t.variableSpending} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.assets?.length) { next.assets = [...prev.assets, ...tag(u.assets)]; u.assets.forEach((x) => summary.push(`${t.secAssets} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.liabilities?.length) { next.liabilities = [...prev.liabilities, ...tag(u.liabilities)]; u.liabilities.forEach((x) => summary.push(`${t.secLiabilities} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.portfolio?.length) { next.portfolio = [...prev.portfolio, ...tag(u.portfolio)]; u.portfolio.forEach((x) => summary.push(`${t.secHoldings} "${x.label}" ${money(x.value, cur)}`)); }
+    if (u.goals?.length) { next.goals = [...prev.goals, ...tag(u.goals)]; u.goals.forEach((x) => summary.push(`${t.secFinancialGoals} "${x.label}" ${money(x.target, cur)}`)); }
+    if (u.retire && Object.keys(u.retire).length) { next.retire = { ...prev.retire, ...u.retire }; summary.push(t.retInputs); }
+    if (next.assets !== prev.assets || next.liabilities !== prev.liabilities || next.portfolio !== prev.portfolio) {
+      next.netWorthHistory = { ...prev.netWorthHistory, [ym()]: netWorthOf(next) };
+    }
+    setData(next);
+    store.set(KEY, JSON.stringify(next));
     return summary;
   };
 
@@ -720,6 +739,9 @@ export default function FinanceDashboard({ locale = "en" }) {
       else if (cmd.bucket === "asset") d.assets = [...d.assets, ...cmd.items.map((it) => mk(it, ASSET_TYPES[4]))];
       else if (cmd.bucket === "liability") d.liabilities = [...d.liabilities, ...cmd.items.map((it) => mk(it))];
       else if (cmd.bucket === "portfolio") d.portfolio = [...d.portfolio, ...cmd.items.map((it) => mk(it, INVEST_CATS[6]))];
+      if (cmd.bucket === "asset" || cmd.bucket === "liability" || cmd.bucket === "portfolio") {
+        d.netWorthHistory = { ...prev.netWorthHistory, [ym()]: netWorthOf(d) };
+      }
       return d;
     });
     // jump to the tab that shows what was just added, so the change is visible
@@ -1227,7 +1249,7 @@ export default function FinanceDashboard({ locale = "en" }) {
               <div className="card">
                 <div className="sec-h"><div className="sec-t">{t.secHoldings}</div><div className="sec-sub">{money(calc.invest, cur)}</div></div>
                 <MoneyList items={data.portfolio} categories={INVEST_CATS} accent="var(--gold2)" cur={cur} t={t} editing={editing}
-                  onChange={(v) => update({ portfolio: v })} />
+                  onChange={(v) => setPortfolio(v)} />
               </div>
             </div>
 
