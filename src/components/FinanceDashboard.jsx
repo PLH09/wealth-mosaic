@@ -286,7 +286,16 @@ const buildCSS = (f) => `
 .more-item:hover{background:rgba(194,151,47,.12);color:var(--gold2);}
 .more-item.danger{color:var(--red);}
 .more-item.danger:hover{background:rgba(196,92,54,.12);color:var(--red);}
-.tab-intro{font-size:13.5px;color:var(--muted);line-height:1.55;margin:-8px 0 18px;max-width:640px;}
+.tab-intro-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:-8px 0 18px;}
+.tab-intro{font-size:13.5px;color:var(--muted);line-height:1.55;max-width:640px;margin:0;}
+.recap-btn{flex:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--gold2);cursor:pointer;
+  background:rgba(194,151,47,.1);border:1px solid rgba(194,151,47,.32);
+  border-radius:999px;padding:7px 13px;transition:.14s;}
+.recap-btn:hover{background:rgba(194,151,47,.18);border-color:rgba(194,151,47,.5);}
+.recap-btn.on{color:var(--bg);background:var(--gold);border-color:var(--gold);
+  animation:recapPulse 1.3s ease-in-out infinite;}
+@keyframes recapPulse{0%,100%{box-shadow:0 0 0 0 rgba(194,151,47,.45);}50%{box-shadow:0 0 0 6px rgba(194,151,47,0);}}
 .edit-hint{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gold2);
   background:rgba(194,151,47,.1);border:1px solid rgba(194,151,47,.28);
   border-radius:11px;padding:9px 14px;margin-bottom:16px;animation:rise .25s ease both;}
@@ -414,8 +423,15 @@ export default function FinanceDashboard({ locale = "en" }) {
     window.speechSynthesis.addEventListener?.("voiceschanged", load);
     return () => { try { window.speechSynthesis.removeEventListener?.("voiceschanged", load); } catch { /* noop */ } };
   }, []);
-  const [storyOpen, setStoryOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+
+  // stop any running narration when the section (tab) changes
+  useEffect(() => {
+    speakCancelRef.current = true;
+    try { if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* noop */ }
+    setSpeaking(false);
+  }, [tab]);
+
   const [editing, setEditing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = React.useRef(null);
@@ -777,15 +793,16 @@ export default function FinanceDashboard({ locale = "en" }) {
 
   const H = { cur, money, short: t.short };
 
-  // ---- spoken financial story ----
-  const story = t.story(calc, data, H);
+  // ---- per-section voice summary ----
+  // each tab speaks its own short recap (replaces the old global "voice recap")
+  const recapText = t.recap ? t.recap(tab, calc, data, H) : "";
 
-  const stopStory = () => {
+  const stopSpeak = () => {
     speakCancelRef.current = true; // guard so chained sentences don't keep playing
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch { /* no-op */ }
     setSpeaking(false);
   };
-  const speakStory = () => {
+  const speak = (text) => {
     if (typeof window === "undefined" || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance === "undefined") {
       alert(t.speechUnsupported);
       return;
@@ -797,13 +814,13 @@ export default function FinanceDashboard({ locale = "en" }) {
     const voice = pickVoice(voicesRef.current, t.voiceLang);
     // Split into sentences so each gets a natural cadence + slight pause between
     // them. Latin "." only splits when followed by space, so decimals like "1.2"
-    // and amounts stay intact; CJW enders 。！？ split directly.
-    const chunks = String(story)
+    // and amounts stay intact; CJK enders 。！？ split directly.
+    const chunks = String(text)
       .replace(/\s+/g, " ")
       .split(/(?<=[。！？])\s*|(?<=[.!?])\s+/)
       .map((s) => s.trim())
       .filter(Boolean);
-    if (!chunks.length) chunks.push(String(story));
+    if (!chunks.length) chunks.push(String(text));
 
     setSpeaking(true);
     let i = 0;
@@ -820,8 +837,6 @@ export default function FinanceDashboard({ locale = "en" }) {
     };
     speakNext();
   };
-  const openStory = () => { setStoryOpen(true); };
-  const closeStory = () => { stopStory(); setStoryOpen(false); };
 
   // wealth-velocity insight values
   const milestone = data.goals.length
@@ -864,7 +879,6 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div className="fd-net-label">{headStat.label}</div>
             <div className={"fd-net fd-tabnum " + (headStat.value >= 0 ? "" : "neg")}>{money(headStat.value, cur)}</div>
             <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-              <button className="fd-toolbtn" onClick={openStory}>{t.btnRecap}</button>
               <button className={"fd-toolbtn" + (editing ? " gold" : "")} onClick={() => setEditing((v) => !v)}>{editing ? t.btnDone : t.btnEdit}</button>
               <div className="more-wrap" ref={moreRef}>
                 <button className="fd-toolbtn" aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen((v) => !v)}>{t.btnMore}</button>
@@ -889,8 +903,17 @@ export default function FinanceDashboard({ locale = "en" }) {
           ))}
         </div>
 
-        {/* plain-language intro for the current tab */}
-        {t.tabIntro && t.tabIntro[tab] && <div className="tab-intro">{t.tabIntro[tab]}</div>}
+        {/* plain-language intro for the current tab + its voice summary */}
+        <div className="tab-intro-row">
+          {t.tabIntro && t.tabIntro[tab] && <div className="tab-intro">{t.tabIntro[tab]}</div>}
+          {recapText && (
+            <button
+              className={"recap-btn " + (speaking ? "on" : "")}
+              onClick={speaking ? stopSpeak : () => speak(recapText)}
+              title={t.recapHint}
+            >{speaking ? t.speakingStop : t.btnRecap}</button>
+          )}
+        </div>
 
         {/* edit-mode banner */}
         {editing && <div className="edit-hint">{t.editingHint}</div>}
@@ -1339,32 +1362,6 @@ export default function FinanceDashboard({ locale = "en" }) {
         );
       })()}
 
-      {/* spoken financial story modal */}
-      {storyOpen && (
-        <div className="modal-bg" onClick={closeStory}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-h">
-              <div>
-                <div className="fd-eyebrow">{t.recapEyebrow}</div>
-                <div className="sec-t" style={{ fontSize: 17 }}>{t.recapTitle}</div>
-              </div>
-              <button className="del" style={{ fontSize: 20 }} onClick={closeStory}>✕</button>
-            </div>
-            <div className="qa-body">
-              <div className="story-text">{story}</div>
-              <div className="qa-actions" style={{ marginTop: 22 }}>
-                <button className={"mic " + (speaking ? "on" : "")} onClick={speaking ? stopStory : speakStory}>
-                  <span className="mic-dot" />
-                  {speaking ? t.speakingStop : t.playVoice}
-                </button>
-                <div style={{ flex: 1 }} />
-                <button className="addbtn" onClick={closeStory}>{t.close}</button>
-              </div>
-              <div className="qa-hint" style={{ marginTop: 12 }}>{t.recapHint}</div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

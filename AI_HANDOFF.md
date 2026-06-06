@@ -92,10 +92,24 @@ Each question has a `target` describing where the answer is written (e.g.
 `{ type: "retire", key: "currentAge" }`). The apply logic is in `FinanceDashboard.jsx`
 (search `tg.type ===`). A previous conversational **voice-assistant** feature was fully removed,
 but three lighter voice features remain: (1) the guided-fill **🎤 mic** (Web Speech
-`SpeechRecognition`) that fills the highlighted blank from spoken numbers, (2) the header
-**🔊 Voice recap** (Web Speech `speechSynthesis`) that reads the financial story aloud, and
-(3) the **🎙️ global voice command** on the single bottom-right FAB. Both
-degrade gracefully (no-op / alert) on browsers without Web Speech support.
+`SpeechRecognition`) that fills the highlighted blank from spoken numbers, (2) the **per-section
+🔊 voice summary** (Web Speech `speechSynthesis`) — a `.recap-btn` next to each tab's intro line
+that reads a short, tab-specific spoken recap (`t.recap(tab, calc, data, H)`, all 5 locales);
+this REPLACED the old single header "Voice recap" that read the whole financial story, and
+(3) the **🎙️ global voice command** on the single bottom-right FAB. Speech INPUT
+(`SpeechRecognition`, feature 1 & 3) is en/zh-TW/zh-CN only; speech OUTPUT (`speechSynthesis`,
+feature 2) works for all 5 locales. All degrade gracefully (no-op / alert) without Web Speech.
+
+**Per-section voice summary (🔊).** `t.recap(tab, calc, data, H)` returns a concise per-tab string
+(overview: net worth / assets-vs-debt + first goal; cashflow: income/expense/net + savings-rate
+verdict + top spend category; invest: total invested / #holdings / biggest + % of assets; retire:
+FIRE target = monthlySpend×12 ÷ (withdrawalRate/100), or a prompt if unset). Each tab also has an
+empty-state fallback string. The `speak()` helper splits the text into sentences (CJK 。！？ / Latin
+`.!?`+space) and chains `SpeechSynthesisUtterance`s via `pickVoice(voicesRef.current, t.voiceLang)`;
+`stopSpeak()` cancels. A `useEffect(..., [tab])` (placed BEFORE the `if (!data||!calc) return` early
+return — Rules of Hooks!) stops narration on tab change. The button shows `t.btnRecap` / `t.speakingStop`
+and uses `t.recapHint` as tooltip. The per-locale `story(c,data,H)` functions and `recapEyebrow /
+recapTitle / playVoice` keys are now UNUSED but left in place (harmless).
 
 **One FAB, two gestures.** There is a single floating action button (`.fab`, the element the tour
 highlights). When voice is supported for the locale (en/zh-TW/zh-CN), a **short tap** starts voice

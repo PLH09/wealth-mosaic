@@ -541,6 +541,46 @@ export const STRINGS = {
       parts.push(`Wealth is never built overnight — it's the quiet sum of small, repeated choices. You're already on your way, and I'll be right here with you.`);
       return parts.join(" ");
     },
+    recap: (tab, c, data, H) => {
+      const n = (x) => H.money(x, H.cur);
+      if (tab === "overview") {
+        if (c.assets <= 0 && c.liab <= 0) return "Your overview is still a blank page. Tap Guided fill to add your first numbers, and I'll tell your story.";
+        const parts = [];
+        if (c.netWorth >= 0) parts.push(`Your net worth is ${n(c.netWorth)} — ${n(c.assets)} in assets against ${n(c.liab)} in debt. What's left is truly yours.`);
+        else parts.push(`Your ${n(c.liab)} in debt is still larger than your ${n(c.assets)} in assets, so net worth sits at ${n(c.netWorth)}. It's just a stretch of road you haven't finished.`);
+        const g = (data.goals || [])[0];
+        if (g && Number(g.target) > 0) { const pct = Math.round((Number(g.current) / Number(g.target)) * 100); parts.push(`Your goal "${g.label}" is already ${pct} percent of the way there.`); }
+        return parts.join(" ");
+      }
+      if (tab === "cashflow") {
+        if (c.income <= 0 && c.expense <= 0) return "No cash flow recorded for this month yet. Add your income and expenses to see your saving power.";
+        let verdict;
+        if (c.rate >= 30) verdict = `a ${c.rate.toFixed(0)} percent savings rate — that's outstanding.`;
+        else if (c.rate >= 20) verdict = `a healthy ${c.rate.toFixed(0)} percent savings rate. Keep it up.`;
+        else if (c.rate >= 0) verdict = `a ${c.rate.toFixed(0)} percent savings rate — every bit saved counts.`;
+        else verdict = `you spent more than you earned this month, but next month is a fresh start.`;
+        const parts = [`This month ${n(c.income)} came in, ${n(c.expense)} went out, leaving ${n(c.net)} — ${verdict}`];
+        const cats = {};
+        [...data.recurring.expenses, ...c.m.expenses].forEach((e) => { const k = e.category || "Other"; cats[k] = (cats[k] || 0) + (Number(e.value) || 0); });
+        const top = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] > 0) parts.push(`Your money runs out fastest on ${top[0]}, at ${n(top[1])} a month.`);
+        return parts.join(" ");
+      }
+      if (tab === "invest") {
+        if (c.invest <= 0) return "No investments recorded yet. Add your holdings to see how your money is growing for you.";
+        const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+        const share = c.assets > 0 ? Math.min(100, Math.round((c.invest / c.assets) * 100)) : 0;
+        return `You have ${n(c.invest)} invested across ${data.portfolio.length} holdings${top ? `, with ${top.label} as your biggest ally` : ""}. That's about ${share} percent of your assets quietly working for you.`;
+      }
+      if (tab === "retire") {
+        const r = data.retire || {};
+        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+        if (!(spend > 0 && wr > 0)) return "Tell me your target monthly spending in retirement, and I'll estimate the nest egg you'll need.";
+        const fi = (spend * 12) / (wr / 100);
+        return `To spend ${n(spend)} a month in retirement, you'd need about ${n(fi)} to buy back your freedom from money worries. Every step today paves the road for your future self.`;
+      }
+      return "";
+    },
   },
 
   "zh-TW": {
@@ -754,6 +794,46 @@ export const STRINGS = {
       if (spend > 0 && wr > 0) { const fi = (spend * 12) / (wr / 100); parts.push(`而那個最遠的夢——退休。若你想往後每月安穩花用 ${sayNum(spend)},大約準備 ${sayNum(fi)},就能換來不再為錢焦慮的自由。聽起來很大,但你今天的每一步,都在替未來的自己鋪路。`); }
       parts.push(`財富從來不是一夜之間,而是一次次小小的堅持累積而成。你已經在路上了,而我會一直陪著你。`);
       return parts.join("");
+    },
+    recap: (tab, c, data, H) => {
+      const sayNum = (x) => H.short(x) + "元";
+      if (tab === "overview") {
+        if (c.assets <= 0 && c.liab <= 0) return "你的總覽還是一張白紙。點「引導填寫」加入第一筆數字,我就能為你說出財務故事。";
+        const parts = [];
+        if (c.netWorth >= 0) parts.push(`你目前的淨資產是 ${sayNum(c.netWorth)}——用 ${sayNum(c.assets)} 的資產扛起 ${sayNum(c.liab)} 的負債,剩下的才真正屬於你。`);
+        else parts.push(`你 ${sayNum(c.liab)} 的負債目前比 ${sayNum(c.assets)} 的資產還大,所以淨資產是 ${sayNum(c.netWorth)}。這只是還沒走完的一段路,別灰心。`);
+        const g = (data.goals || [])[0];
+        if (g && Number(g.target) > 0) { const pct = Math.round((Number(g.current) / Number(g.target)) * 100); parts.push(`你的目標「${g.label}」已經走完 ${pct} 趴。`); }
+        return parts.join("");
+      }
+      if (tab === "cashflow") {
+        if (c.income <= 0 && c.expense <= 0) return "這個月還沒有任何現金流。加入收入與支出,就能看見你的儲蓄力。";
+        let verdict;
+        if (c.rate >= 30) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,太漂亮了!`;
+        else if (c.rate >= 20) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,穩穩走在健康的軌道上。`;
+        else if (c.rate >= 0) verdict = `儲蓄率 ${c.rate.toFixed(0)} 趴,有存下來就是勝利。`;
+        else verdict = `這個月花得比賺的多,別自責,下個月就有機會調整回來。`;
+        const parts = [`這個月收入 ${sayNum(c.income)},支出 ${sayNum(c.expense)},留下 ${sayNum(c.net)}。${verdict}`];
+        const cats = {};
+        [...data.recurring.expenses, ...c.m.expenses].forEach((e) => { const k = e.category || "其他"; cats[k] = (cats[k] || 0) + (Number(e.value) || 0); });
+        const top = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] > 0) parts.push(`錢花得最兇的地方是「${top[0]}」,一個月 ${sayNum(top[1])}。`);
+        return parts.join("");
+      }
+      if (tab === "invest") {
+        if (c.invest <= 0) return "目前還沒有投資紀錄。加入你的持倉,就能看見錢正在替你成長。";
+        const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+        const share = c.assets > 0 ? Math.min(100, Math.round((c.invest / c.assets) * 100)) : 0;
+        return `你有 ${sayNum(c.invest)} 分散在 ${data.portfolio.length} 項持倉裡${top ? `,其中 ${top.label} 是你最大的夥伴` : ""}。這大約占你資產的 ${share} 趴,正默默替你工作。`;
+      }
+      if (tab === "retire") {
+        const r = data.retire || {};
+        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+        if (!(spend > 0 && wr > 0)) return "告訴我你退休後每月想花多少,我就能估算你需要準備的金額。";
+        const fi = (spend * 12) / (wr / 100);
+        return `若你想往後每月安穩花用 ${sayNum(spend)},大約準備 ${sayNum(fi)},就能換來不再為錢焦慮的自由。你今天的每一步,都在替未來的自己鋪路。`;
+      }
+      return "";
     },
   },
 
@@ -969,6 +1049,46 @@ export const STRINGS = {
       parts.push(`财富从来不是一夜之间,而是一次次小小的坚持累积而成。你已经在路上了,而我会一直陪着你。`);
       return parts.join("");
     },
+    recap: (tab, c, data, H) => {
+      const sayNum = (x) => H.short(x) + "元";
+      if (tab === "overview") {
+        if (c.assets <= 0 && c.liab <= 0) return "你的总览还是一张白纸。点「引导填写」加入第一笔数字,我就能为你讲出财务故事。";
+        const parts = [];
+        if (c.netWorth >= 0) parts.push(`你目前的净资产是 ${sayNum(c.netWorth)}——用 ${sayNum(c.assets)} 的资产扛起 ${sayNum(c.liab)} 的负债,剩下的才真正属于你。`);
+        else parts.push(`你 ${sayNum(c.liab)} 的负债目前比 ${sayNum(c.assets)} 的资产还大,所以净资产是 ${sayNum(c.netWorth)}。这只是还没走完的一段路,别灰心。`);
+        const g = (data.goals || [])[0];
+        if (g && Number(g.target) > 0) { const pct = Math.round((Number(g.current) / Number(g.target)) * 100); parts.push(`你的目标「${g.label}」已经走完 ${pct}%。`); }
+        return parts.join("");
+      }
+      if (tab === "cashflow") {
+        if (c.income <= 0 && c.expense <= 0) return "这个月还没有任何现金流。加入收入与支出,就能看见你的储蓄力。";
+        let verdict;
+        if (c.rate >= 30) verdict = `储蓄率 ${c.rate.toFixed(0)}%,太漂亮了!`;
+        else if (c.rate >= 20) verdict = `储蓄率 ${c.rate.toFixed(0)}%,稳稳走在健康的轨道上。`;
+        else if (c.rate >= 0) verdict = `储蓄率 ${c.rate.toFixed(0)}%,有存下来就是胜利。`;
+        else verdict = `这个月花得比赚的多,别自责,下个月就有机会调整回来。`;
+        const parts = [`这个月收入 ${sayNum(c.income)},支出 ${sayNum(c.expense)},留下 ${sayNum(c.net)}。${verdict}`];
+        const cats = {};
+        [...data.recurring.expenses, ...c.m.expenses].forEach((e) => { const k = e.category || "其他"; cats[k] = (cats[k] || 0) + (Number(e.value) || 0); });
+        const top = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] > 0) parts.push(`钱花得最凶的地方是「${top[0]}」,一个月 ${sayNum(top[1])}。`);
+        return parts.join("");
+      }
+      if (tab === "invest") {
+        if (c.invest <= 0) return "目前还没有投资记录。加入你的持仓,就能看见钱正在替你成长。";
+        const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+        const share = c.assets > 0 ? Math.min(100, Math.round((c.invest / c.assets) * 100)) : 0;
+        return `你有 ${sayNum(c.invest)} 分散在 ${data.portfolio.length} 项持仓里${top ? `,其中 ${top.label} 是你最大的伙伴` : ""}。这大约占你资产的 ${share}%,正默默替你工作。`;
+      }
+      if (tab === "retire") {
+        const r = data.retire || {};
+        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+        if (!(spend > 0 && wr > 0)) return "告诉我你退休后每月想花多少,我就能估算你需要准备的金额。";
+        const fi = (spend * 12) / (wr / 100);
+        return `若你想往后每月安稳花用 ${sayNum(spend)},大约准备 ${sayNum(fi)},就能换来不再为钱焦虑的自由。你今天的每一步,都在替未来的自己铺路。`;
+      }
+      return "";
+    },
   },
 
   ja: {
@@ -1183,6 +1303,46 @@ export const STRINGS = {
       parts.push(`富は一夜にして築かれるものではなく、小さな選択の積み重ねです。あなたはもう歩み始めています。私はずっとそばにいます。`);
       return parts.join("");
     },
+    recap: (tab, c, data, H) => {
+      const sayNum = (x) => H.short(x) + "円";
+      if (tab === "overview") {
+        if (c.assets <= 0 && c.liab <= 0) return "概要はまだ白紙です。「ガイド入力」を押して最初の数字を入れれば、あなたの家計ストーリーをお話しします。";
+        const parts = [];
+        if (c.netWorth >= 0) parts.push(`今のあなたの純資産は ${sayNum(c.netWorth)} です。${sayNum(c.assets)} の資産で ${sayNum(c.liab)} の負債を支え、残ったのは本当にあなたのもの。`);
+        else parts.push(`${sayNum(c.liab)} の負債が ${sayNum(c.assets)} の資産より大きく、純資産は ${sayNum(c.netWorth)} です。これはまだ走り切っていない道、気を落とさないで。`);
+        const g = (data.goals || [])[0];
+        if (g && Number(g.target) > 0) { const pct = Math.round((Number(g.current) / Number(g.target)) * 100); parts.push(`目標「${g.label}」はすでに ${pct}% まで来ています。`); }
+        return parts.join("");
+      }
+      if (tab === "cashflow") {
+        if (c.income <= 0 && c.expense <= 0) return "今月のキャッシュフローはまだありません。収入と支出を入れると、貯蓄力が見えてきます。";
+        let verdict;
+        if (c.rate >= 30) verdict = `貯蓄率 ${c.rate.toFixed(0)}% —— 見事です。`;
+        else if (c.rate >= 20) verdict = `貯蓄率 ${c.rate.toFixed(0)}%、健全な軌道をしっかり進んでいます。`;
+        else if (c.rate >= 0) verdict = `貯蓄率 ${c.rate.toFixed(0)}%、貯められたこと自体が勝利です。`;
+        else verdict = `今月は収入より支出が多めでした。自分を責めず、来月は立て直しましょう。`;
+        const parts = [`今月は ${sayNum(c.income)} が入り、${sayNum(c.expense)} が出て、${sayNum(c.net)} が残りました。${verdict}`];
+        const cats = {};
+        [...data.recurring.expenses, ...c.m.expenses].forEach((e) => { const k = e.category || "その他"; cats[k] = (cats[k] || 0) + (Number(e.value) || 0); });
+        const top = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] > 0) parts.push(`お金が一番出ていくのは「${top[0]}」で、月に ${sayNum(top[1])} です。`);
+        return parts.join("");
+      }
+      if (tab === "invest") {
+        if (c.invest <= 0) return "まだ投資の記録がありません。保有銘柄を追加すると、お金がどう育っているか見えます。";
+        const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+        const share = c.assets > 0 ? Math.min(100, Math.round((c.invest / c.assets) * 100)) : 0;
+        return `${sayNum(c.invest)} が ${data.portfolio.length} 銘柄に分散${top ? `、なかでも ${top.label} が最大の味方です` : ""}。資産の約 ${share}% が、静かにあなたのために働いています。`;
+      }
+      if (tab === "retire") {
+        const r = data.retire || {};
+        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+        if (!(spend > 0 && wr > 0)) return "退職後に毎月いくら使いたいか教えてください。必要な資金を見積もります。";
+        const fi = (spend * 12) / (wr / 100);
+        return `これから毎月 ${sayNum(spend)} を安心して使うには、およそ ${sayNum(fi)} あれば、お金の不安から自由になれます。今日の一歩一歩が未来の自分への道を作ります。`;
+      }
+      return "";
+    },
   },
 
   ko: {
@@ -1396,6 +1556,46 @@ export const STRINGS = {
       if (spend > 0 && wr > 0) { const fi = (spend * 12) / (wr / 100); parts.push(`그리고 가장 먼 꿈 —— 은퇴. 앞으로 매월 ${sayNum(spend)}을 마음 편히 쓰려면 약 ${sayNum(fi)}이 있으면 돈 걱정에서 자유로워집니다. 크게 들리지만, 오늘의 한 걸음 한 걸음이 미래의 당신을 위한 길을 닦습니다.`); }
       parts.push(`부는 하룻밤에 이뤄지지 않고, 작은 선택의 반복이 쌓여 만들어집니다. 당신은 이미 길 위에 있고, 저는 늘 곁에 있겠습니다.`);
       return parts.join("");
+    },
+    recap: (tab, c, data, H) => {
+      const sayNum = (x) => H.short(x) + "원";
+      if (tab === "overview") {
+        if (c.assets <= 0 && c.liab <= 0) return "개요는 아직 백지입니다. 「가이드 입력」을 눌러 첫 숫자를 넣으면, 당신의 재무 이야기를 들려드릴게요.";
+        const parts = [];
+        if (c.netWorth >= 0) parts.push(`지금 당신의 순자산은 ${sayNum(c.netWorth)}입니다. ${sayNum(c.assets)}의 자산으로 ${sayNum(c.liab)}의 부채를 떠받치고 남은, 진짜 당신의 몫이죠.`);
+        else parts.push(`${sayNum(c.liab)}의 부채가 ${sayNum(c.assets)}의 자산보다 커서, 순자산은 ${sayNum(c.netWorth)}입니다. 아직 다 걷지 못한 길일 뿐이니 낙심하지 마세요.`);
+        const g = (data.goals || [])[0];
+        if (g && Number(g.target) > 0) { const pct = Math.round((Number(g.current) / Number(g.target)) * 100); parts.push(`목표 「${g.label}」은(는) 이미 ${pct}%까지 왔습니다.`); }
+        return parts.join(" ");
+      }
+      if (tab === "cashflow") {
+        if (c.income <= 0 && c.expense <= 0) return "이번 달 현금 흐름이 아직 없습니다. 수입과 지출을 넣으면 저축력이 보입니다.";
+        let verdict;
+        if (c.rate >= 30) verdict = `저축률 ${c.rate.toFixed(0)}% —— 정말 멋집니다.`;
+        else if (c.rate >= 20) verdict = `저축률 ${c.rate.toFixed(0)}%, 건전한 궤도를 꾸준히 가고 있습니다.`;
+        else if (c.rate >= 0) verdict = `저축률 ${c.rate.toFixed(0)}%, 모았다는 것 자체가 승리입니다.`;
+        else verdict = `이번 달은 번 것보다 더 썼지만, 다음 달엔 되돌릴 기회가 있습니다.`;
+        const parts = [`이번 달은 ${sayNum(c.income)}이 들어오고 ${sayNum(c.expense)}이 나가, ${sayNum(c.net)}이 남았습니다. ${verdict}`];
+        const cats = {};
+        [...data.recurring.expenses, ...c.m.expenses].forEach((e) => { const k = e.category || "기타"; cats[k] = (cats[k] || 0) + (Number(e.value) || 0); });
+        const top = Object.entries(cats).sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] > 0) parts.push(`돈이 가장 빨리 빠져나가는 곳은 「${top[0]}」로 한 달에 ${sayNum(top[1])}입니다.`);
+        return parts.join(" ");
+      }
+      if (tab === "invest") {
+        if (c.invest <= 0) return "아직 투자 기록이 없습니다. 보유 종목을 추가하면 돈이 어떻게 자라는지 볼 수 있어요.";
+        const top = [...data.portfolio].sort((a, b) => (b.value || 0) - (a.value || 0))[0];
+        const share = c.assets > 0 ? Math.min(100, Math.round((c.invest / c.assets) * 100)) : 0;
+        return `${sayNum(c.invest)}이 ${data.portfolio.length}개 종목에 분산되어 있습니다${top ? `, 그중 ${top.label}이(가) 가장 든든한 동료죠` : ""}. 자산의 약 ${share}%가 조용히 당신을 위해 일하고 있습니다.`;
+      }
+      if (tab === "retire") {
+        const r = data.retire || {};
+        const spend = Number(r.monthlySpend), wr = Number(r.withdrawalRate);
+        if (!(spend > 0 && wr > 0)) return "은퇴 후 매월 얼마를 쓰고 싶은지 알려주시면 필요한 자금을 추정해 드릴게요.";
+        const fi = (spend * 12) / (wr / 100);
+        return `앞으로 매월 ${sayNum(spend)}을 마음 편히 쓰려면 약 ${sayNum(fi)}이 있으면 돈 걱정에서 자유로워집니다. 오늘의 한 걸음 한 걸음이 미래의 당신을 위한 길을 닦습니다.`;
+      }
+      return "";
     },
   },
 };
