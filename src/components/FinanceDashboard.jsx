@@ -9,6 +9,7 @@ import { STRINGS, VOICE, fonts } from "../i18n.jsx";
 const KEY = "finance:data:v3";
 const TOUR_KEY = "finance:tour:v1";
 const VC_BUCKET_KEY = "finance:vcbucket:v1"; // remembers the last category picked for an amount-only voice entry
+const VC_LABELS_KEY = "finance:vclabels:v1"; // remembers category per item name, e.g. {"電影":"recurring_expense"}
 const LEGACY_KEYS = ["finance:data:en:v2", "finance:data:v2"];
 const store = {
   async get(k) {
@@ -419,6 +420,13 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [vcHeard, setVcHeard] = useState("");
   const [vcAsk, setVcAsk] = useState(null); // {items} when an amount was heard but no category
   const [vcLastBucket, setVcLastBucket] = useState(() => { try { return window.localStorage.getItem(VC_BUCKET_KEY) || ""; } catch { return ""; } });
+  const vcLabelMap = React.useRef((() => { try { return JSON.parse(window.localStorage.getItem(VC_LABELS_KEY) || "{}") || {}; } catch { return {}; } })());
+  const vcLabelKey = (s) => String(s || "").trim().toLowerCase();
+  const rememberLabels = (items, bucket) => {
+    let changed = false;
+    (items || []).forEach((it) => { const k = vcLabelKey(it.label); if (k) { vcLabelMap.current[k] = bucket; changed = true; } });
+    if (changed) { try { window.localStorage.setItem(VC_LABELS_KEY, JSON.stringify(vcLabelMap.current)); } catch { /* ignore */ } }
+  };
   const [fabCue, setFabCue] = useState(true); // brief hint explaining the FAB's tap vs long-press
   const vcMsgTimer = React.useRef(null);
   // single FAB: tap = voice, long-press = guided fill
@@ -735,8 +743,18 @@ export default function FinanceDashboard({ locale = "en" }) {
       return;
     }
     if (cmd.action === "unknown") {
-      // amount heard but no category named: ask the user to pick one
-      if (cmd.reason === "no_bucket" && cmd.items && cmd.items.length) { setVcMsg(""); setVcAsk({ items: cmd.items }); return; }
+      // amount heard but no category named
+      if (cmd.reason === "no_bucket" && cmd.items && cmd.items.length) {
+        // if every item name was categorized before, file them automatically (no prompt)
+        const resolved = cmd.items.map((it) => ({ it, b: vcLabelMap.current[vcLabelKey(it.label)] }));
+        if (resolved.every((r) => r.b)) {
+          const groups = {};
+          resolved.forEach((r) => { (groups[r.b] = groups[r.b] || []).push(r.it); });
+          Object.entries(groups).forEach(([b, items]) => applyVoiceCommand({ action: "add", bucket: b, items, _remembered: true }));
+          return;
+        }
+        setVcMsg(""); setVcAsk({ items: cmd.items }); return;
+      }
       flashVcMsg(t.vcNoBucket); return;
     }
     if (cmd.action !== "add" || !cmd.items || !cmd.items.length) return;
@@ -765,6 +783,8 @@ export default function FinanceDashboard({ locale = "en" }) {
     const tabFor = { recurring_income: "cashflow", recurring_expense: "cashflow", month_income: "cashflow", month_expense: "cashflow", asset: "overview", liability: "overview", portfolio: "invest" };
     if (tabFor[cmd.bucket]) setTab(tabFor[cmd.bucket]);
     setVcAsk(null);
+    // learn item-name -> category so future amount-only entries file themselves
+    if (!cmd._remembered) rememberLabels(cmd.items, cmd.bucket);
     flashVcMsg(t.vcAdded(t.vcBuckets[cmd.bucket] || "", n));
   };
 
