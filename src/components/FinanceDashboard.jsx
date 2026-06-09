@@ -8,6 +8,7 @@ import { STRINGS, VOICE, fonts } from "../i18n.jsx";
 /* ----------------------------- persistent storage ----------------------------- */
 const KEY = "finance:data:v3";
 const TOUR_KEY = "finance:tour:v1";
+const VC_BUCKET_KEY = "finance:vcbucket:v1"; // remembers the last category picked for an amount-only voice entry
 const LEGACY_KEYS = ["finance:data:en:v2", "finance:data:v2"];
 const store = {
   async get(k) {
@@ -213,6 +214,7 @@ const buildCSS = (f) => `
 .vc-pick-btn{pointer-events:auto;cursor:pointer;background:var(--bg);border:1px solid var(--line2);
   color:var(--text);border-radius:999px;padding:6px 12px;font-size:12.5px;transition:all .15s;}
 .vc-pick-btn:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-1px);}
+.vc-pick-btn.last{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
 .vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
 .vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
 /* guided tour */
@@ -416,6 +418,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
   const [vcAsk, setVcAsk] = useState(null); // {items} when an amount was heard but no category
+  const [vcLastBucket, setVcLastBucket] = useState(() => { try { return window.localStorage.getItem(VC_BUCKET_KEY) || ""; } catch { return ""; } });
   const [fabCue, setFabCue] = useState(true); // brief hint explaining the FAB's tap vs long-press
   const vcMsgTimer = React.useRef(null);
   // single FAB: tap = voice, long-press = guided fill
@@ -1307,11 +1310,20 @@ export default function FinanceDashboard({ locale = "en" }) {
             <div className="vc-pick">
               <div className="vc-pick-q">{t.vcPickCat((vcAsk.items[0] || {}).label, money((vcAsk.items[0] || {}).value, cur))}</div>
               <div className="vc-pick-opts">
-                {["recurring_expense", "month_expense", "recurring_income", "month_income", "asset", "liability", "portfolio"].map((b) => (
-                  <button key={b} className="vc-pick-btn" onClick={() => { setVcAsk(null); applyVoiceCommand({ action: "add", bucket: b, items: vcAsk.items }); }}>
-                    {t.vcBuckets[b]}
-                  </button>
-                ))}
+                {(() => {
+                  const all = ["recurring_expense", "month_expense", "recurring_income", "month_income", "asset", "liability", "portfolio"];
+                  const ordered = vcLastBucket && all.includes(vcLastBucket) ? [vcLastBucket, ...all.filter((b) => b !== vcLastBucket)] : all;
+                  return ordered.map((b) => (
+                    <button key={b} className={"vc-pick-btn" + (b === vcLastBucket ? " last" : "")} onClick={() => {
+                      setVcAsk(null);
+                      setVcLastBucket(b);
+                      try { window.localStorage.setItem(VC_BUCKET_KEY, b); } catch { /* ignore */ }
+                      applyVoiceCommand({ action: "add", bucket: b, items: vcAsk.items });
+                    }}>
+                      {t.vcBuckets[b]}{b === vcLastBucket ? " ★" : ""}
+                    </button>
+                  ));
+                })()}
                 <button className="vc-pick-btn cancel" onClick={() => setVcAsk(null)}>{t.cancel || "✕"}</button>
               </div>
             </div>
