@@ -221,6 +221,9 @@ const buildCSS = (f) => `
 .vc-pick-btn.last{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
 .vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
 .vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+input[type=range]{-webkit-appearance:none;height:6px;border-radius:3px;background:var(--line2);outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--gold);box-shadow:0 1px 4px rgba(0,0,0,.25);}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--gold);border:none;}
 .chip-cat{display:inline-block;background:rgba(194,151,47,.15);color:var(--gold);border-radius:6px;
   font-size:10.5px;padding:1px 6px;margin:0 4px;font-weight:600;letter-spacing:.01em;}
 .cat-editor{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;}
@@ -449,6 +452,7 @@ export default function FinanceDashboard({ locale = "en" }) {
     portfolio: [],
     goals: [],
     retire: { currentAge: "", retireAge: "", monthlySpend: "", withdrawalRate: "", annualReturn: "", inflation: "", currentSavings: "", monthlyContribution: "" },
+    allocation: { debtPct: 0, goalsPct: 30, investPct: 50, bufferPct: 20 },
   }), [locale]);
 
   const [data, setData] = useState(null);
@@ -1255,6 +1259,7 @@ export default function FinanceDashboard({ locale = "en" }) {
 
         {/* ---------------- Cash Flow ---------------- */}
         {tab === "cashflow" && (
+          <>
           <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
             <div className="card">
               <div className="sec-h">
@@ -1412,6 +1417,101 @@ export default function FinanceDashboard({ locale = "en" }) {
               })()}
             </div>
           </div>
+
+          {/* ---- Surplus Allocation (inside grid) ---- */}
+          {calc.net > 0 && (() => {
+            const surplus = calc.net || 0;
+            if (surplus <= 0) return null;
+            const alloc = data.allocation || { debtPct: 0, goalsPct: 30, investPct: 50, bufferPct: 20 };
+            const hasDebt = calc.liab > 0;
+            // keys that are always present
+            const freeKeys = ["investPct", "goalsPct", "bufferPct"];
+            const allKeys = hasDebt ? ["debtPct", ...freeKeys] : freeKeys;
+
+            // rebalance: change one key, spread remainder proportionally among others
+            const setAlloc = (key, rawVal) => {
+              const val = Math.min(100, Math.max(0, Math.round(rawVal)));
+              const others = allKeys.filter((k) => k !== key);
+              const remaining = 100 - val;
+              const sumOthers = others.reduce((s, k) => s + (alloc[k] || 0), 0);
+              const next = { ...alloc, [key]: val };
+              if (sumOthers > 0) {
+                let leftover = remaining;
+                others.forEach((k, i) => {
+                  const share = i === others.length - 1 ? leftover : Math.round(remaining * (alloc[k] || 0) / sumOthers);
+                  next[k] = Math.max(0, share);
+                  leftover -= next[k];
+                });
+              } else {
+                const each = Math.round(remaining / others.length);
+                others.forEach((k, i) => { next[k] = i === others.length - 1 ? remaining - each * (others.length - 1) : each; });
+              }
+              update({ allocation: next });
+            };
+
+            // smart suggestion based on debt/surplus ratio
+            const suggestAlloc = () => {
+              const months = surplus > 0 && calc.liab > 0 ? Math.round(calc.liab / surplus) : 0;
+              if (!hasDebt) return update({ allocation: { debtPct: 0, investPct: 50, goalsPct: 30, bufferPct: 20 } });
+              if (months > 24) return update({ allocation: { debtPct: 40, investPct: 25, goalsPct: 20, bufferPct: 15 } });
+              if (months > 12) return update({ allocation: { debtPct: 25, investPct: 35, goalsPct: 25, bufferPct: 15 } });
+              update({ allocation: { debtPct: 15, investPct: 40, goalsPct: 30, bufferPct: 15 } });
+            };
+
+            const autoContrib = Math.round(surplus * (alloc.investPct || 0) / 100);
+            const debtPaydown = Math.round(surplus * (alloc.debtPct || 0) / 100);
+            const debtMonthsLeft = debtPaydown > 0 ? Math.ceil(calc.liab / debtPaydown) : null;
+
+            const rows = [
+              hasDebt && { key: "debtPct", icon: "📉", label: t.allocDebt || "Loan repayment",     color: "#c45c36" },
+              { key: "goalsPct",  icon: "🎯", label: t.allocGoals   || "Short-term goals",   color: "var(--green)" },
+              { key: "investPct", icon: "📈", label: t.allocInvest  || "Long-term investing", color: "var(--gold)" },
+              { key: "bufferPct", icon: "🛡️", label: t.allocBuffer  || "Keep as buffer",      color: "var(--muted)" },
+            ].filter(Boolean);
+
+            return (
+              <div className="card" style={{ marginTop: 0 }}>
+                <div className="sec-h">
+                  <div><div className="sec-t">{t.secAllocate || "Surplus Allocation"}</div>
+                    <div className="sec-sub">{t.allocSub || "Give every dollar of your surplus a job"}</div></div>
+                  <button className="fd-toolbtn" onClick={suggestAlloc}>{t.allocSuggest || "✦ Suggest"}</button>
+                </div>
+                {/* surplus hero */}
+                <div style={{ textAlign: "center", padding: "4px 0 18px" }}>
+                  <div className="fd-eyebrow">{t.monthlySurplus}</div>
+                  <div className="fd-tabnum" style={{ fontSize: 34, color: "var(--gold)" }}>{money(surplus, cur)}</div>
+                </div>
+                {rows.map(({ key, icon, label, color }) => {
+                  const pct = alloc[key] || 0;
+                  const amt = Math.round(surplus * pct / 100);
+                  return (
+                    <div key={key} style={{ marginBottom: 18 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{icon} {label}</span>
+                        <span>
+                          <span className="fd-tabnum" style={{ fontSize: 18, color }}>{pct}%</span>
+                          <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 6 }}>{money(amt, cur)}/mo</span>
+                        </span>
+                      </div>
+                      <input type="range" min={0} max={100} step={1} value={pct}
+                        style={{ width: "100%", accentColor: color }}
+                        onChange={(e) => setAlloc(key, Number(e.target.value))} />
+                    </div>
+                  );
+                })}
+                {/* colour bar */}
+                <div style={{ display: "flex", height: 8, borderRadius: 4, overflow: "hidden", gap: 2, marginBottom: 14 }}>
+                  {rows.map(({ key, color }) => (alloc[key] || 0) > 0 &&
+                    <div key={key} style={{ flex: alloc[key], background: color }} />
+                  )}
+                </div>
+                {/* insights */}
+                {autoContrib > 0 && <div className="insight">📈 {t.allocAutoNote ? t.allocAutoNote(money(autoContrib, cur)) : `Retirement contribution auto-set to ${money(autoContrib, cur)}/mo`}</div>}
+                {debtMonthsLeft && <div className="insight" style={{ marginTop: 6 }}>📉 {t.allocDebtEta ? t.allocDebtEta(debtMonthsLeft) : `Debt-free in ~${debtMonthsLeft} months at this rate`}</div>}
+              </div>
+            );
+          })()}
+          </>
         )}
 
         {/* ---------------- Investments & Goals ---------------- */}
@@ -1451,6 +1551,7 @@ export default function FinanceDashboard({ locale = "en" }) {
         {/* ---------------- Retirement ---------------- */}
         {tab === "retire" && (
           <RetirementView ret={data.retire} cur={cur} calc={calc} t={t} H={H}
+            autoContrib={data.allocation && calc.net > 0 ? Math.round(calc.net * (data.allocation.investPct || 0) / 100) : null}
             onChange={(r) => update({ retire: { ...data.retire, ...r } })} />
         )}
       </div>
@@ -1862,13 +1963,16 @@ function RetInput({ label, value, onChange, suffix, hint, placeholder }) {
 }
 
 const RET_DEFAULTS = { annualReturn: 5, inflation: 2, withdrawalRate: 4 };
-function RetirementView({ ret, onChange, calc, cur, t, H }) {
+function RetirementView({ ret, onChange, calc, cur, t, H, autoContrib }) {
   const r = ret || {};
   const set = (k) => (v) => onChange({ [k]: v });
   const [panelOpen, setPanelOpen] = useState(true);
+  // Use allocation-derived contribution as effective value when field is empty
+  const effectiveContrib = (r.monthlyContribution !== "" && r.monthlyContribution != null)
+    ? r.monthlyContribution : (autoContrib != null ? String(autoContrib) : "");
   const fillNow = () => onChange({
     currentSavings: Math.max(0, Math.round(calc.invest || calc.netWorth || 0)),
-    monthlyContribution: Math.max(0, Math.round(calc.net || 0)),
+    monthlyContribution: "",  // clear so auto-allocation takes over
     monthlySpend: Math.max(0, Math.round(calc.expense || 0)),
   });
   // only offer "use current numbers" when there is real data to pull from
@@ -1881,7 +1985,7 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
     const age = Number(r.currentAge) || 0;
     const rage = Number(r.retireAge) || 0;
     const cs = num(r.currentSavings, 0);
-    const pmt = num(r.monthlyContribution, 0);
+    const pmt = num(effectiveContrib, 0);
     const ar = num(r.annualReturn, 5) / 100;
     const infl = num(r.inflation, 2) / 100;
     const spendYr = (Number(r.monthlySpend) || 0) * 12;
@@ -1924,11 +2028,25 @@ function RetirementView({ ret, onChange, calc, cur, t, H }) {
     "currentAge", "retireAge", "monthlySpend", "currentSavings",
     "monthlyContribution", "annualReturn", "inflation", "withdrawalRate",
   ]);
-  const field = (f) => (
-    <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
-      placeholder={RET_DEFAULTS[f.k] != null ? String(RET_DEFAULTS[f.k]) : undefined}
-      value={r[f.k]} onChange={set(f.k)} />
-  );
+  const field = (f) => {
+    if (f.k === "monthlyContribution" && autoContrib != null) {
+      return (
+        <div key={f.k}>
+          <RetInput label={f.label} suffix={f.suffix} hint={f.hint}
+            placeholder={String(autoContrib)}
+            value={r[f.k]} onChange={set(f.k)} />
+          {!r[f.k] && <div className="insight" style={{ fontSize: 11.5, marginTop: 4 }}>
+            📈 {t.allocAutoNote ? t.allocAutoNote(money(autoContrib, cur)) : `Auto from allocation: ${money(autoContrib, cur)}/mo`}
+          </div>}
+        </div>
+      );
+    }
+    return (
+      <RetInput key={f.k} label={f.label} suffix={f.suffix} hint={f.hint}
+        placeholder={RET_DEFAULTS[f.k] != null ? String(RET_DEFAULTS[f.k]) : undefined}
+        value={r[f.k]} onChange={set(f.k)} />
+    );
+  };
 
   return (
     <div className="grid stagger" style={{ display: "grid", gap: 14 }}>
