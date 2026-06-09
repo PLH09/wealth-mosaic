@@ -221,6 +221,8 @@ const buildCSS = (f) => `
 .vc-pick-btn.last{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
 .vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
 .vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+.chip-cat{display:inline-block;background:rgba(194,151,47,.15);color:var(--gold);border-radius:6px;
+  font-size:10.5px;padding:1px 6px;margin:0 4px;font-weight:600;letter-spacing:.01em;}
 .cat-editor{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;}
 .cat-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--line);
   border-radius:20px;padding:3px 10px;font-size:12px;color:var(--text);}
@@ -908,7 +910,7 @@ export default function FinanceDashboard({ locale = "en" }) {
           items.push({ label: (qv.label || "").trim() || q.fallbackLabel || t.fallbackItem, value: Math.round(typed) });
         if (!items.length) return;
         if (tg.type === "recurring_income") upd.recurring_income.push(...items.map((it) => ({ label: it.label, value: it.value })));
-        else if (tg.type === "recurring_expense") upd.recurring_expenses.push(...items.map((it) => ({ label: it.label, value: it.value, category: tg.category || EXPENSE_CATS[6] })));
+        else if (tg.type === "recurring_expense") upd.recurring_expenses.push(...items.map((it) => ({ label: it.label, value: it.value, category: it.category || tg.category || EXPENSE_CATS[6] })));
         else if (tg.type === "asset") upd.assets.push(...items.map((it) => ({ label: it.label, value: it.value, category: tg.assetType || ASSET_TYPES[4] })));
         else if (tg.type === "portfolio") upd.portfolio.push(...items.map((it) => ({ label: it.label, value: it.value, category: tg.category || INVEST_CATS[6] })));
         else if (tg.type === "liability") upd.liabilities.push(...items.map((it) => ({ label: it.label, value: it.value })));
@@ -930,6 +932,30 @@ export default function FinanceDashboard({ locale = "en" }) {
   };
 
   const QUESTIONS = useMemo(() => t.questions(cur, t.cats), [locale, cur]);
+
+  // Auto-guess expense category from an item label using keyword rules + category-name match
+  const guessCat = (label) => {
+    const last = expenseCats[expenseCats.length - 1];
+    if (!label || !label.trim()) return last;
+    const l = label.trim().toLowerCase();
+    // 1) if any current category name is a substring of the label (or vice-versa), prefer it
+    for (const c of expenseCats.slice(0, -1)) {
+      if (l.includes(c.toLowerCase()) || c.toLowerCase().includes(l)) return c;
+    }
+    // 2) keyword rules mapped to default category positions
+    const rules = [
+      { re: /rent|mortgage|rates|water|electric|gas|power|util|internet|broadband|phone|mobile|council|strata|nbn/, idx: 0 },
+      { re: /food|grocer|supermarket|coles|woolworth|aldi|iga|dining|restaurant|cafe|coffee|lunch|dinner|takeaway|deliveroo|ubereats/, idx: 1 },
+      { re: /transport|uber|taxi|bus|train|tram|metro|fuel|petrol|parking|opal|myki|toll|car\b/, idx: 2 },
+      { re: /insur|health cover|dental|life |home insur|contents|medibank|bupa|nib/, idx: 3 },
+      { re: /gym|fitness|yoga|pilates|sport|cinema|movie|theatre|concert|entertain|leisure/, idx: 4 },
+      { re: /netflix|spotify|amazon|disney|apple|google|youtube|hbo|foxtel|streaming|subscription|sub\b/, idx: 5 },
+    ];
+    for (const r of rules) {
+      if (r.re.test(l)) return expenseCats[r.idx] ?? last;
+    }
+    return last;
+  };
 
   const calc = useMemo(() => {
     if (!data) return null;
@@ -1532,7 +1558,22 @@ export default function FinanceDashboard({ locale = "en" }) {
                             {q.withLabel && (
                               <input className="inp" placeholder={t.namePH} value={qv.label}
                                 onFocus={() => setActive(i)}
-                                onChange={(e) => setQuick(i, { label: e.target.value })} />
+                                onChange={(e) => {
+                                  const lbl = e.target.value;
+                                  const patch = { label: lbl };
+                                  // auto-guess category only for expense multi rows, and only if user hasn't manually picked
+                                  if (q.multi && q.target?.type === "recurring_expense" && !qv.catManual) {
+                                    patch.cat = guessCat(lbl);
+                                  }
+                                  setQuick(i, patch);
+                                }} />
+                            )}
+                            {q.multi && q.target?.type === "recurring_expense" && (
+                              <select className="sel" style={{ flex: "0 0 auto" }}
+                                value={qv.cat || expenseCats[expenseCats.length - 1]}
+                                onChange={(e) => setQuick(i, { cat: e.target.value, catManual: true })}>
+                                {expenseCats.map((c) => <option key={c} value={c}>{c}</option>)}
+                              </select>
                             )}
                             <div className="qa-numwrap" style={{ flex: q.withLabel ? "0 0 132px" : 1 }}>
                               <input className="inp qa-num" type="number" inputMode="numeric"
@@ -1546,7 +1587,12 @@ export default function FinanceDashboard({ locale = "en" }) {
                                 e.stopPropagation();
                                 const v = Number(qv.val);
                                 if (qv.val === "" || isNaN(v) || v <= 0) return;
-                                setQuick(i, { items: [...(qv.items || []), { label: (qv.label || "").trim() || q.fallbackLabel || t.fallbackItem, value: Math.round(v) }], val: "", label: "" });
+                                const itemLabel = (qv.label || "").trim() || q.fallbackLabel || t.fallbackItem;
+                                const itemCat = (q.target?.type === "recurring_expense")
+                                  ? (qv.cat || guessCat(itemLabel))
+                                  : undefined;
+                                const newItem = { label: itemLabel, value: Math.round(v), ...(itemCat ? { category: itemCat } : {}) };
+                                setQuick(i, { items: [...(qv.items || []), newItem], val: "", label: "", cat: "", catManual: false });
                               }}>{t.addThis}</button>
                             )}
                           </div>
@@ -1554,7 +1600,9 @@ export default function FinanceDashboard({ locale = "en" }) {
                             <div className="changed" style={{ marginTop: 8 }}>
                               {qv.items.map((it, j) => (
                                 <span key={j} className="chip">
-                                  {it.label} {money(it.value, cur)}
+                                  {it.label}
+                                  {it.category && <span className="chip-cat">{it.category}</span>}
+                                  {" "}{money(it.value, cur)}
                                   <button className="del" style={{ marginLeft: 6 }}
                                     onClick={(e) => { e.stopPropagation(); setQuick(i, { items: qv.items.filter((_, k) => k !== j) }); }}>✕</button>
                                 </span>
