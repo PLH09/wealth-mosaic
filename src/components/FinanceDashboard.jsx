@@ -10,6 +10,7 @@ const KEY = "finance:data:v3";
 const TOUR_KEY = "finance:tour:v1";
 const VC_BUCKET_KEY = "finance:vcbucket:v1"; // remembers the last category picked for an amount-only voice entry
 const VC_LABELS_KEY = "finance:vclabels:v1"; // remembers category per item name, e.g. {"電影":"recurring_expense"}
+const FEEDBACK_EMAIL = "paulineh54001109@gmail.com"; // official inbox for in-app feedback (mailto)
 const LEGACY_KEYS = ["finance:data:en:v2", "finance:data:v2"];
 const store = {
   async get(k) {
@@ -220,6 +221,31 @@ const buildCSS = (f) => `
 .vc-pick-btn.last{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
 .vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
 .vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+.fb-overlay{position:fixed;inset:0;z-index:60;background:rgba(8,10,14,.62);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:18px;animation:fade .2s ease both;}
+.fb-card{position:relative;width:min(440px,100%);background:var(--surface);border:1px solid var(--line2);
+  border-radius:18px;padding:22px 22px 18px;box-shadow:0 30px 70px -20px rgba(0,0,0,.7);animation:rise .25s ease both;}
+.fb-x{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);
+  background:var(--bg);color:var(--muted);cursor:pointer;font-size:13px;line-height:1;}
+.fb-x:hover{border-color:var(--red);color:var(--red);}
+.fb-title{font-size:18px;font-weight:700;color:var(--text);}
+.fb-intro{color:var(--muted);font-size:13px;line-height:1.5;margin:6px 0 14px;}
+.fb-types{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.fb-type{cursor:pointer;background:var(--bg);border:1px solid var(--line2);color:var(--text);
+  border-radius:999px;padding:7px 14px;font-size:13px;transition:all .15s;}
+.fb-type:hover{border-color:var(--gold);}
+.fb-type.on{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
+.fb-text{width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line2);border-radius:12px;
+  color:var(--text);font-size:14px;line-height:1.5;padding:11px 13px;resize:vertical;font-family:inherit;}
+.fb-text:focus{outline:none;border-color:var(--gold);}
+.fb-err{color:var(--red);font-size:12.5px;margin-top:7px;}
+.fb-note{color:var(--muted);font-size:11.5px;line-height:1.45;margin:10px 0 0;}
+.fb-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px;}
+.fb-btn{cursor:pointer;border-radius:10px;padding:9px 16px;font-size:13.5px;font-weight:600;transition:all .15s;border:1px solid var(--line2);}
+.fb-btn.ghost{background:var(--bg);color:var(--muted);}
+.fb-btn.ghost:hover{color:var(--text);border-color:var(--muted);}
+.fb-btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1407;}
+.fb-btn.gold:hover{filter:brightness(1.08);transform:translateY(-1px);}
 /* guided tour */
 .tour-root{position:fixed;inset:0;z-index:9000;}
 .tour-dim{position:absolute;inset:0;background:rgba(28,22,12,.62);backdrop-filter:blur(2px);animation:fade .25s ease both;}
@@ -459,6 +485,7 @@ export default function FinanceDashboard({ locale = "en" }) {
 
   const [editing, setEditing] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [fbOpen, setFbOpen] = useState(false);
   const moreRef = React.useRef(null);
   const [tourOpen, setTourOpen] = useState(false);
 
@@ -971,6 +998,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                 {moreOpen && (
                   <div className="more-menu" role="menu">
                     <button className="more-item" role="menuitem" onClick={() => { setMoreOpen(false); setTourOpen(true); }}>{t.tour.menu}</button>
+                    <button className="more-item" role="menuitem" onClick={() => { setMoreOpen(false); setFbOpen(true); }}>{t.fbMenu}</button>
                     <button className="more-item" role="menuitem" onClick={() => { exportData(); setMoreOpen(false); }}>{t.btnExport}</button>
                     <button className="more-item" role="menuitem" onClick={() => { fileRef.current && fileRef.current.click(); setMoreOpen(false); }}>{t.btnImport}</button>
                     <button className="more-item danger" role="menuitem" onClick={() => { setMoreOpen(false); if (confirm(t.clearConfirm)) update({ ...DEFAULT }); }}>{t.btnClear}</button>
@@ -1376,6 +1404,7 @@ export default function FinanceDashboard({ locale = "en" }) {
 
       {/* guided product tour (spotlight) */}
       {tourOpen && <Tour t={t} onClose={closeTour} />}
+      {fbOpen && <FeedbackModal t={t} onClose={() => setFbOpen(false)} />}
 
       {/* guided fill modal — single fill-in-the-blank form */}
       {chatOpen && (() => {
@@ -1611,6 +1640,64 @@ const TOUR_SELECTORS = [
   "[data-tour='lang']", // language switcher (rendered by App.jsx)
   null,                 // wrap-up
 ];
+
+function FeedbackModal({ t, onClose }) {
+  const TYPES = [
+    { key: "bug", label: t.fbTypes.bug },
+    { key: "idea", label: t.fbTypes.idea },
+    { key: "other", label: t.fbTypes.other },
+  ];
+  const [type, setType] = useState("bug");
+  const [text, setText] = useState("");
+  const [err, setErr] = useState("");
+  const taRef = React.useRef(null);
+
+  useEffect(() => {
+    taRef.current && taRef.current.focus();
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const send = () => {
+    const body = text.trim();
+    if (!body) { setErr(t.fbEmpty); taRef.current && taRef.current.focus(); return; }
+    const typeLabel = (TYPES.find((x) => x.key === type) || {}).label || "";
+    const subject = t.fbSubject(typeLabel);
+    const href = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    try { window.location.href = href; } catch { /* ignore */ }
+    onClose();
+  };
+
+  return (
+    <div className="fb-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="fb-card" role="dialog" aria-modal="true" aria-label={t.fbTitle}>
+        <button className="fb-x" onClick={onClose} aria-label={t.fbCancel}>✕</button>
+        <div className="fb-title">{t.fbTitle}</div>
+        <div className="fb-intro">{t.fbIntro}</div>
+        <div className="fb-types">
+          {TYPES.map((x) => (
+            <button key={x.key} className={"fb-type" + (type === x.key ? " on" : "")} onClick={() => setType(x.key)}>{x.label}</button>
+          ))}
+        </div>
+        <textarea
+          ref={taRef}
+          className="fb-text"
+          rows={5}
+          placeholder={t.fbPlaceholder}
+          value={text}
+          onChange={(e) => { setText(e.target.value); if (err) setErr(""); }}
+        />
+        {err && <div className="fb-err">{err}</div>}
+        <div className="fb-note">{t.fbNote}</div>
+        <div className="fb-actions">
+          <button className="fb-btn ghost" onClick={onClose}>{t.fbCancel}</button>
+          <button className="fb-btn gold" onClick={send}>{t.fbSend}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Tour({ t, onClose }) {
   const steps = t.tour.steps;
