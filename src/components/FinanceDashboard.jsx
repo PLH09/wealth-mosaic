@@ -10,6 +10,7 @@ const KEY = "finance:data:v3";
 const TOUR_KEY = "finance:tour:v1";
 const VC_BUCKET_KEY = "finance:vcbucket:v1"; // remembers the last category picked for an amount-only voice entry
 const VC_LABELS_KEY = "finance:vclabels:v1"; // remembers category per item name, e.g. {"電影":"recurring_expense"}
+const CATS_EXPENSE_KEY = "finance:cats:expense:v1"; // user-customised expense category list
 const LEGACY_KEYS = ["finance:data:en:v2", "finance:data:v2"];
 const store = {
   async get(k) {
@@ -220,6 +221,15 @@ const buildCSS = (f) => `
 .vc-pick-btn.last{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
 .vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
 .vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+.cat-editor{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;}
+.cat-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:20px;padding:3px 10px;font-size:12px;color:var(--text);}
+.cat-chip.locked{background:rgba(194,151,47,.1);border-color:var(--gold);color:var(--gold);}
+.cat-chip-del{background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;padding:0;line-height:1;transition:.15s;}
+.cat-chip-del:hover{color:var(--red);}
+.cat-chip-in{background:var(--surface2);border:1px dashed var(--line2);border-radius:20px;padding:3px 10px;
+  font-size:12px;color:var(--text);font-family:var(--sans);outline:none;width:80px;transition:.15s;}
+.cat-chip-in:focus{border-color:var(--gold);width:110px;}
 .list-total{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:9px;
   border-top:1px solid var(--line);font-size:13px;color:var(--muted);}
 .list-total-v{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text);}
@@ -389,6 +399,37 @@ function MoneyList({ items, onChange, categories, valueKey = "value", accent, cu
   );
 }
 
+/* ---- category chip editor ---- */
+function CategoryEditor({ cats, onAdd, onRemove }) {
+  const [draft, setDraft] = useState("");
+  const commit = () => {
+    const v = draft.trim();
+    if (!v || cats.includes(v)) { setDraft(""); return; }
+    onAdd(v);
+    setDraft("");
+  };
+  return (
+    <div className="cat-editor">
+      {cats.map((c, i) => (
+        <span key={c} className={`cat-chip${i === cats.length - 1 ? " locked" : ""}`}>
+          {c}
+          {i < cats.length - 1 && (
+            <button className="cat-chip-del" title="Remove" onClick={() => onRemove(c)}>×</button>
+          )}
+        </span>
+      ))}
+      <input
+        className="cat-chip-in"
+        placeholder="+ Add…"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && commit()}
+        onBlur={commit}
+      />
+    </div>
+  );
+}
+
 /* ----------------------------- main ----------------------------- */
 export default function FinanceDashboard({ locale = "en" }) {
   const t = STRINGS[locale] || STRINGS.en;
@@ -439,6 +480,33 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [vcLastBucket, setVcLastBucket] = useState(() => { try { return window.localStorage.getItem(VC_BUCKET_KEY) || ""; } catch { return ""; } });
   const vcLabelMap = React.useRef((() => { try { return JSON.parse(window.localStorage.getItem(VC_LABELS_KEY) || "{}") || {}; } catch { return {}; } })());
   const vcLabelKey = (s) => String(s || "").trim().toLowerCase();
+
+  // ---- user-customisable expense categories ----
+  const [expenseCats, setExpenseCats] = useState(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(CATS_EXPENSE_KEY));
+      return Array.isArray(saved) && saved.length >= 2 ? saved : t.cats.expense;
+    } catch { return t.cats.expense; }
+  });
+  const saveExpenseCats = (cats) => {
+    setExpenseCats(cats);
+    try { window.localStorage.setItem(CATS_EXPENSE_KEY, JSON.stringify(cats)); } catch {}
+  };
+  const removeExpenseCat = (c) => {
+    const fallback = expenseCats[expenseCats.length - 1];
+    const next = expenseCats.filter((x) => x !== c);
+    if (next.length < 1) return;
+    saveExpenseCats(next);
+    // reassign any items using the deleted category to the fallback
+    const reassign = (arr) => arr.map((it) => it.category === c ? { ...it, category: fallback } : it);
+    update({
+      recurring: { ...data.recurring, expenses: reassign(data.recurring.expenses) },
+      months: Object.fromEntries(
+        Object.entries(data.months || {}).map(([k, v]) => [k, { ...v, expenses: reassign(v.expenses || []) }])
+      ),
+    });
+  };
+
   const rememberLabels = (items, bucket) => {
     let changed = false;
     (items || []).forEach((it) => { const k = vcLabelKey(it.label); if (k) { vcLabelMap.current[k] = bucket; changed = true; } });
@@ -1266,7 +1334,14 @@ export default function FinanceDashboard({ locale = "en" }) {
                 </div>
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.recurringExpenses}</div>
-                  <MoneyList items={data.recurring.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t} editing={editing}
+                  {editing && (
+                    <CategoryEditor
+                      cats={expenseCats}
+                      onAdd={(v) => saveExpenseCats([...expenseCats.slice(0, -1), v, expenseCats[expenseCats.length - 1]])}
+                      onRemove={removeExpenseCat}
+                    />
+                  )}
+                  <MoneyList items={data.recurring.expenses} categories={expenseCats} accent="var(--red)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ recurring: { ...data.recurring, expenses: v } })} />
                   {data.recurring.expenses.length > 0 && (
                     <div className="list-total"><span>{t.total}</span><span className="list-total-v neg">{money(sum(data.recurring.expenses), cur)}</span></div>
@@ -1285,7 +1360,14 @@ export default function FinanceDashboard({ locale = "en" }) {
                 </div>
                 <div>
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.variableSpending}</div>
-                  <MoneyList items={calc.m.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t} editing={editing}
+                  {editing && (
+                    <CategoryEditor
+                      cats={expenseCats}
+                      onAdd={(v) => saveExpenseCats([...expenseCats.slice(0, -1), v, expenseCats[expenseCats.length - 1]])}
+                      onRemove={removeExpenseCat}
+                    />
+                  )}
+                  <MoneyList items={calc.m.expenses} categories={expenseCats} accent="var(--red)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ months: { ...data.months, [month]: { ...calc.m, expenses: v } } })} />
                   {calc.m.expenses.length > 0 && (
                     <div className="list-total"><span>{t.total}</span><span className="list-total-v neg">{money(sum(calc.m.expenses), cur)}</span></div>
