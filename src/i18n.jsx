@@ -134,7 +134,7 @@ function zhParseCommand(raw) {
   else if (isVar && bucket === "recurring_expense") bucket = "month_expense";
   const items = zhSplitMultiLabelAmount(body);
   if (items.length) {
-    if (!bucket) return { action: "unknown", reason: "no_bucket", text: s };
+    if (!bucket) return { action: "unknown", reason: "no_bucket", text: s, items };
     return { action: "add", bucket, items };
   }
   const NAV = [
@@ -272,7 +272,7 @@ function enParseCommand(raw) {
   else if (isVar && bucket === "recurring_expense") bucket = "month_expense";
   const items = enSplitMultiLabelAmount(body);
   if (items.length) {
-    if (!bucket) return { action: "unknown", reason: "no_bucket", text: s };
+    if (!bucket) return { action: "unknown", reason: "no_bucket", text: s, items };
     return { action: "add", bucket, items };
   }
   const NAV = [
@@ -465,6 +465,7 @@ export const STRINGS = {
     vcAdded: (what, n) => `Added ${n} ${what}${n > 1 ? "s" : ""} ✓`,
     vcNav: (where) => `Switched to ${where}`,
     vcNoBucket: "Got the amount — say a category too, e.g. “expense”, “asset”, “investment”.",
+    vcPickCat: (label, n) => `Where does “${label || n}” belong?`,
     vcUnrecognized: (txt) => `Didn’t catch a command in “${txt}”. Try “add income salary 5000”.`,
     speechNoSupport: "This browser does not support voice input — please type instead. Chrome or Safari work best.",
     speechCantStart: "Could not start voice — please type instead.",
@@ -721,6 +722,7 @@ export const STRINGS = {
     vcAdded: (what, n) => `已新增 ${n} 筆${what} ✓`,
     vcNav: (where) => `已切換到${where}`,
     vcNoBucket: "聽到金額了——再說一個類別,例如「支出」「資產」「投資」。",
+    vcPickCat: (label, n) => `「${label || n}」要記在哪一類?`,
     vcUnrecognized: (txt) => `沒聽出指令:「${txt}」。試試「新增收入 薪水 五萬」。`,
     speechNoSupport: "這個瀏覽器不支援語音輸入,請改用打字。建議用 Chrome 或 Safari。",
     speechCantStart: "無法啟動語音,請改用打字。",
@@ -977,6 +979,7 @@ export const STRINGS = {
     vcAdded: (what, n) => `已新增 ${n} 笔${what} ✓`,
     vcNav: (where) => `已切换到${where}`,
     vcNoBucket: "听到金额了——再说一个类别,例如「支出」「资产」「投资」。",
+    vcPickCat: (label, n) => `「${label || n}」要记在哪一类?`,
     vcUnrecognized: (txt) => `没听出指令:「${txt}」。试试「新增收入 薪水 五万」。`,
     speechNoSupport: "这个浏览器不支持语音输入,请改用打字。建议用 Chrome 或 Safari。",
     speechCantStart: "无法启动语音,请改用打字。",
@@ -1233,6 +1236,7 @@ export const STRINGS = {
     vcAdded: (what, n) => `${what}を${n}件追加しました ✓`,
     vcNav: (where) => `${where}に切り替えました`,
     vcNoBucket: "金額は聞き取れました。カテゴリも言ってください(例:「支出」「資産」「投資」)。",
+    vcPickCat: (label, n) => `「${label || n}」はどのカテゴリ?`,
     vcUnrecognized: (txt) => `コマンドを認識できません:「${txt}」。`,
     speechNoSupport: "このブラウザは音声入力に対応していません。入力してください。Chrome か Safari を推奨します。",
     speechCantStart: "音声を開始できませんでした。入力してください。",
@@ -1489,6 +1493,7 @@ export const STRINGS = {
     vcAdded: (what, n) => `${what} ${n}건 추가됨 ✓`,
     vcNav: (where) => `${where}(으)로 전환했습니다`,
     vcNoBucket: "금액은 인식했어요. 카테고리도 말해 주세요(예: 「지출」 「자산」 「투자」).",
+    vcPickCat: (label, n) => `「${label || n}」은(는) 어느 분류?`,
     vcUnrecognized: (txt) => `명령을 인식하지 못했습니다: 「${txt}」.`,
     speechNoSupport: "이 브라우저는 음성 입력을 지원하지 않습니다. 직접 입력해 주세요. Chrome 또는 Safari를 권장합니다.",
     speechCantStart: "음성을 시작할 수 없습니다. 직접 입력해 주세요.",

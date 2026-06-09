@@ -206,6 +206,15 @@ const buildCSS = (f) => `
   padding:7px 13px;font-size:12px;line-height:1.3;box-shadow:0 10px 26px -10px rgba(0,0,0,.5);
   animation:rise .4s ease both;white-space:nowrap;}
 .fab-cue b{color:var(--text);font-weight:600;}
+.vc-pick{pointer-events:auto;background:var(--surface);border:1px solid var(--gold);border-radius:14px;
+  padding:11px 13px;box-shadow:0 12px 30px -10px rgba(0,0,0,.55);animation:rise .3s ease both;max-width:300px;}
+.vc-pick-q{color:var(--text);font-size:13.5px;line-height:1.4;margin-bottom:9px;font-weight:600;}
+.vc-pick-opts{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end;}
+.vc-pick-btn{pointer-events:auto;cursor:pointer;background:var(--bg);border:1px solid var(--line2);
+  color:var(--text);border-radius:999px;padding:6px 12px;font-size:12.5px;transition:all .15s;}
+.vc-pick-btn:hover{border-color:var(--gold);color:var(--gold);transform:translateY(-1px);}
+.vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
+.vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
 /* guided tour */
 .tour-root{position:fixed;inset:0;z-index:9000;}
 .tour-dim{position:absolute;inset:0;background:rgba(28,22,12,.62);backdrop-filter:blur(2px);animation:fade .25s ease both;}
@@ -406,6 +415,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   // global voice command shares the single recognizer above (recogRef / listening)
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
+  const [vcAsk, setVcAsk] = useState(null); // {items} when an amount was heard but no category
   const [fabCue, setFabCue] = useState(true); // brief hint explaining the FAB's tap vs long-press
   const vcMsgTimer = React.useRef(null);
   // single FAB: tap = voice, long-press = guided fill
@@ -721,7 +731,11 @@ export default function FinanceDashboard({ locale = "en" }) {
       flashVcMsg(t.vcNav((TABS.find((x) => x.key === cmd.tab) || {}).label || cmd.tab));
       return;
     }
-    if (cmd.action === "unknown") { flashVcMsg(t.vcNoBucket); return; }
+    if (cmd.action === "unknown") {
+      // amount heard but no category named: ask the user to pick one
+      if (cmd.reason === "no_bucket" && cmd.items && cmd.items.length) { setVcMsg(""); setVcAsk({ items: cmd.items }); return; }
+      flashVcMsg(t.vcNoBucket); return;
+    }
     if (cmd.action !== "add" || !cmd.items || !cmd.items.length) return;
     const mk = (it, cat) => ({ id: uid(), label: (it.label || "").trim() || t.fallbackItem, value: it.value, ...(cat ? { category: cat } : {}) });
     const n = cmd.items.length;
@@ -747,6 +761,7 @@ export default function FinanceDashboard({ locale = "en" }) {
     // jump to the tab that shows what was just added, so the change is visible
     const tabFor = { recurring_income: "cashflow", recurring_expense: "cashflow", month_income: "cashflow", month_expense: "cashflow", asset: "overview", liability: "overview", portfolio: "invest" };
     if (tabFor[cmd.bucket]) setTab(tabFor[cmd.bucket]);
+    setVcAsk(null);
     flashVcMsg(t.vcAdded(t.vcBuckets[cmd.bucket] || "", n));
   };
 
@@ -1284,12 +1299,25 @@ export default function FinanceDashboard({ locale = "en" }) {
       )}
 
       {/* voice-command live transcript + result toast, plus idle tap/hold cue */}
-      {voice && (listening || vcMsg || fabCue) && !chatOpen && (
+      {voice && (listening || vcMsg || vcAsk || fabCue) && !chatOpen && (
         <div className="vc-toast">
           {listening && <div className="vc-listening"><span className="mic-dot" />{vcHeard ? t.heard(vcHeard) : t.vcListening}</div>}
           {listening && !vcHeard && <div className="vc-examples">{t.vcExamples}</div>}
-          {vcMsg && <div className="vc-result">{vcMsg}</div>}
-          {!listening && !vcMsg && fabCue && (
+          {vcAsk && (
+            <div className="vc-pick">
+              <div className="vc-pick-q">{t.vcPickCat((vcAsk.items[0] || {}).label, money((vcAsk.items[0] || {}).value, cur))}</div>
+              <div className="vc-pick-opts">
+                {["recurring_expense", "month_expense", "recurring_income", "month_income", "asset", "liability", "portfolio"].map((b) => (
+                  <button key={b} className="vc-pick-btn" onClick={() => { setVcAsk(null); applyVoiceCommand({ action: "add", bucket: b, items: vcAsk.items }); }}>
+                    {t.vcBuckets[b]}
+                  </button>
+                ))}
+                <button className="vc-pick-btn cancel" onClick={() => setVcAsk(null)}>{t.cancel || "✕"}</button>
+              </div>
+            </div>
+          )}
+          {!vcAsk && vcMsg && <div className="vc-result">{vcMsg}</div>}
+          {!listening && !vcMsg && !vcAsk && fabCue && (
             <div className="fab-cue" dangerouslySetInnerHTML={{ __html: t.fabCue }} />
           )}
         </div>
