@@ -60,11 +60,19 @@ function zhParseSpoken(raw) {
 }
 function zhSplitLabelAmount(raw) {
   const t = String(raw || "").trim();
-  const m = t.match(/^(.*?)[\s:：]*([\d零〇一壹二兩倆贰貳三參叁四肆五伍六陸七柒八捌九玖十拾百佰千仟萬万億亿.點,，]+(?:元|塊|塊錢|k|w)?)$/);
+  const NUM = "[\\d零〇一壹二兩倆贰貳三參叁四肆五伍六陸七柒八捌九玖十拾百佰千仟萬万億亿.點,，]+(?:元|塊|塊錢|k|w)?";
+  const clean = (s) => s.replace(/(是|有|大約|大概|每月|每個月|的)/g, "").trim();
+  // label first, amount last: "電影250" / "電影 250元"
+  let m = t.match(new RegExp("^(.*?)[\\s:：]*(" + NUM + ")$"));
   if (m) {
     const amount = zhParseSpoken(m[2]);
-    let label = m[1].replace(/(是|有|大約|大概|每月|每個月|的)/g, "").trim();
-    return { label, amount };
+    if (!isNaN(amount)) return { label: clean(m[1]), amount };
+  }
+  // amount first, label last: "250電影" / "250元 電影"
+  m = t.match(new RegExp("^(" + NUM + ")[\\s:：]*(.+)$"));
+  if (m) {
+    const amount = zhParseSpoken(m[1]);
+    if (!isNaN(amount)) return { label: clean(m[2]), amount };
   }
   return { label: t, amount: NaN };
 }
@@ -195,11 +203,19 @@ function enSplitLabelAmount(raw) {
   while (i > 0 && enIsNumWord(tokens[i - 1])) i--;
   const tail = tokens.slice(i).join(" ");
   const amount = enParseSpoken(tail);
+  const clean = (s) => s
+    .replace(/\b(is|are|of|the|my|a|about|around|currently|worth|value|valued|at)\b/gi, "")
+    .trim();
+  // amount last: "movie 250"
   if (!isNaN(amount) && amount > 0) {
-    const label = tokens.slice(0, i).join(" ")
-      .replace(/\b(is|are|of|the|my|a|about|around|currently|worth|value|valued|at)\b/gi, "")
-      .trim();
-    return { label, amount };
+    return { label: clean(tokens.slice(0, i).join(" ")), amount };
+  }
+  // amount first: "250 movie"
+  let j = 0;
+  while (j < tokens.length && enIsNumWord(tokens[j])) j++;
+  const lead = enParseSpoken(tokens.slice(0, j).join(" "));
+  if (!isNaN(lead) && lead > 0 && j < tokens.length) {
+    return { label: clean(tokens.slice(j).join(" ")), amount: lead };
   }
   return { label: t, amount: NaN };
 }
