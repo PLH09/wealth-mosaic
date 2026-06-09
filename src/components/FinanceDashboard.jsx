@@ -220,6 +220,10 @@ const buildCSS = (f) => `
 .vc-pick-btn.last{border-color:var(--gold);color:var(--gold);background:rgba(194,151,47,.12);font-weight:600;}
 .vc-pick-btn.cancel{border-color:var(--line2);color:var(--muted);}
 .vc-pick-btn.cancel:hover{border-color:var(--red);color:var(--red);}
+.list-total{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:9px;
+  border-top:1px solid var(--line);font-size:13px;color:var(--muted);}
+.list-total-v{font-variant-numeric:tabular-nums;font-weight:700;color:var(--text);}
+.list-total-v.neg{color:var(--red);}
 /* guided tour */
 .tour-root{position:fixed;inset:0;z-index:9000;}
 .tour-dim{position:absolute;inset:0;background:rgba(28,22,12,.62);backdrop-filter:blur(2px);animation:fade .25s ease both;}
@@ -1248,6 +1252,9 @@ export default function FinanceDashboard({ locale = "en" }) {
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.recurringExpenses}</div>
                   <MoneyList items={data.recurring.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ recurring: { ...data.recurring, expenses: v } })} />
+                  {data.recurring.expenses.length > 0 && (
+                    <div className="list-total"><span>{t.total}</span><span className="list-total-v neg">{money(sum(data.recurring.expenses), cur)}</span></div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1264,6 +1271,9 @@ export default function FinanceDashboard({ locale = "en" }) {
                   <div className="kpi-l" style={{ marginBottom: 6 }}>{t.variableSpending}</div>
                   <MoneyList items={calc.m.expenses} categories={EXPENSE_CATS} accent="var(--red)" cur={cur} t={t} editing={editing}
                     onChange={(v) => update({ months: { ...data.months, [month]: { ...calc.m, expenses: v } } })} />
+                  {calc.m.expenses.length > 0 && (
+                    <div className="list-total"><span>{t.total}</span><span className="list-total-v neg">{money(sum(calc.m.expenses), cur)}</span></div>
+                  )}
                 </div>
               </div>
               {(() => {
