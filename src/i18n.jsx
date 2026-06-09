@@ -112,22 +112,35 @@ function zhIsNoneAnswer(raw) {
 /* Global voice command: routes a spoken phrase into an add/navigate intent.
    e.g. "新增支出 房租 兩萬 餐費 五千" -> add two recurring expenses;
         "去現金流" / "看投資" -> switch tab. Returns null if nothing recognized. */
+const ZH_BUCKETS = [
+  ["recurring_income", /收入|薪水|月薪|薪資|薪资|工資|工资|進帳|进帐/],
+  ["recurring_expense", /支出|開銷|开销|花費|花费|費用|费用|帳單|账单|開支|开支|消費|消费/],
+  ["liability", /負債|负债|貸款|贷款|債務|债务|卡債|卡债|欠款|房貸|房贷|車貸|车贷/],
+  ["asset", /資產|资产|存款|現金|现金|銀行|银行|戶頭|户头|定存|儲蓄|储蓄/],
+  ["portfolio", /投資|投资|持股|股票|基金|ETF|加密|虛擬貨幣|虚拟货币|債券|债券|投組|投组/i],
+];
+// "this-month variable" qualifier routes income/expense to the monthly ledger
+const ZH_VAR_SRC = "本月變動|本月变动|本月|這個月|这个月|當月|当月|這月|这月|當期|当期|變動|变动";
+// resolve a spoken category phrase (e.g. "本月支出") into a bucket key, or null
+function zhMatchBucket(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  const isVar = new RegExp(ZH_VAR_SRC).test(s);
+  const body = s.replace(new RegExp(ZH_VAR_SRC, "g"), " ");
+  let bucket = null;
+  for (const [b, re] of ZH_BUCKETS) { if (re.test(body)) { bucket = b; break; } }
+  if (!bucket) return null;
+  if (isVar && bucket === "recurring_income") return "month_income";
+  if (isVar && bucket === "recurring_expense") return "month_expense";
+  return bucket;
+}
 function zhParseCommand(raw) {
   const s = String(raw || "").trim();
   if (!s) return null;
   let body = s.replace(/新增一筆|新增一笔|新增|增加|加入|添加|登記一下|登记一下|登記|登记|記一筆|记一笔|記一下|记一下|幫我|帮我|我要|我想|請|请|^加|加(?=[一-龥])/g, " ").trim();
-  const BUCKETS = [
-    ["recurring_income", /收入|薪水|月薪|薪資|薪资|工資|工资|進帳|进帐/],
-    ["recurring_expense", /支出|開銷|开销|花費|花费|費用|费用|帳單|账单|開支|开支|消費|消费/],
-    ["liability", /負債|负债|貸款|贷款|債務|债务|卡債|卡债|欠款|房貸|房贷|車貸|车贷/],
-    ["asset", /資產|资产|存款|現金|现金|銀行|银行|戶頭|户头|定存|儲蓄|储蓄/],
-    ["portfolio", /投資|投资|持股|股票|基金|ETF|加密|虛擬貨幣|虚拟货币|債券|债券|投組|投组/i],
-  ];
-  // "this-month variable" qualifier routes income/expense to the monthly ledger
-  // instead of the fixed/recurring one
-  const VAR_SRC = "本月變動|本月变动|本月|這個月|这个月|當月|当月|這月|这月|當期|当期|變動|变动";
-  const isVar = new RegExp(VAR_SRC).test(body);
-  body = body.replace(new RegExp(VAR_SRC, "g"), " ").trim();
+  const BUCKETS = ZH_BUCKETS;
+  const isVar = new RegExp(ZH_VAR_SRC).test(body);
+  body = body.replace(new RegExp(ZH_VAR_SRC, "g"), " ").trim();
   let bucket = null;
   for (const [b, re] of BUCKETS) { if (re.test(body)) { bucket = b; body = body.replace(re, " ").trim(); break; } }
   if (isVar && bucket === "recurring_income") bucket = "month_income";
@@ -146,7 +159,7 @@ function zhParseCommand(raw) {
   for (const [tab, re] of NAV) { if (re.test(s)) return { action: "nav", tab }; }
   return null;
 }
-const zhParser = { parseSpoken: zhParseSpoken, splitLabelAmount: zhSplitLabelAmount, splitMultiLabelAmount: zhSplitMultiLabelAmount, isNoneAnswer: zhIsNoneAnswer, parseCommand: zhParseCommand };
+const zhParser = { parseSpoken: zhParseSpoken, splitLabelAmount: zhSplitLabelAmount, splitMultiLabelAmount: zhSplitMultiLabelAmount, isNoneAnswer: zhIsNoneAnswer, parseCommand: zhParseCommand, matchBucket: zhMatchBucket };
 
 /* English spoken-number parser. */
 const EN_SMALL = {
@@ -250,22 +263,35 @@ function enIsNoneAnswer(raw) {
   if (!isNaN(v) && v > 0) return false;
   return /\b(none|no|nope|nothing|nah|zero|skip|nada|don'?t have|do not have|haven'?t got|n\/a)\b/i.test(s);
 }
+const EN_BUCKETS = [
+  ["recurring_income", /\b(incomes?|salar(?:y|ies)|paychecks?|wages?|earnings?)\b/i],
+  ["recurring_expense", /\b(expenses?|spending|spend|bills?|costs?|payments?)\b/i],
+  ["liability", /\b(debts?|loans?|liabilit(?:y|ies)|mortgages?|owe[ds]?)\b/i],
+  ["asset", /\b(assets?|savings?|cash|bank|checking|deposits?)\b/i],
+  ["portfolio", /\b(investments?|invest|stocks?|shares?|funds?|holdings?|crypto|etf|bonds?|portfolio)\b/i],
+];
+const EN_VAR_SRC = "this month|this-month|variable";
+// resolve a spoken category phrase into a bucket key, or null
+function enMatchBucket(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+  const isVar = new RegExp(EN_VAR_SRC, "i").test(s);
+  const body = s.replace(new RegExp(EN_VAR_SRC, "gi"), " ");
+  let bucket = null;
+  for (const [b, re] of EN_BUCKETS) { if (re.test(body)) { bucket = b; break; } }
+  if (!bucket) return null;
+  if (isVar && bucket === "recurring_income") return "month_income";
+  if (isVar && bucket === "recurring_expense") return "month_expense";
+  return bucket;
+}
 /* Global voice command (English). See zhParseCommand for the contract. */
 function enParseCommand(raw) {
   const s = String(raw || "").trim();
   if (!s) return null;
   let body = s.replace(/\b(add|log|record|new|put|note|please|i want to|i'?d like to|can you|let'?s)\b/gi, " ").trim();
-  const BUCKETS = [
-    ["recurring_income", /\b(incomes?|salar(?:y|ies)|paychecks?|wages?|earnings?)\b/i],
-    ["recurring_expense", /\b(expenses?|spending|spend|bills?|costs?|payments?)\b/i],
-    ["liability", /\b(debts?|loans?|liabilit(?:y|ies)|mortgages?|owe[ds]?)\b/i],
-    ["asset", /\b(assets?|savings?|cash|bank|checking|deposits?)\b/i],
-    ["portfolio", /\b(investments?|invest|stocks?|shares?|funds?|holdings?|crypto|etf|bonds?|portfolio)\b/i],
-  ];
-  // "this-month / variable" qualifier routes income/expense to the monthly ledger
-  const VAR_SRC = "this month|this-month|variable";
-  const isVar = new RegExp(VAR_SRC, "i").test(body);
-  body = body.replace(new RegExp(VAR_SRC, "gi"), " ").trim();
+  const BUCKETS = EN_BUCKETS;
+  const isVar = new RegExp(EN_VAR_SRC, "i").test(body);
+  body = body.replace(new RegExp(EN_VAR_SRC, "gi"), " ").trim();
   let bucket = null;
   for (const [b, re] of BUCKETS) { if (re.test(body)) { bucket = b; body = body.replace(re, " ").trim(); break; } }
   if (isVar && bucket === "recurring_income") bucket = "month_income";
@@ -284,7 +310,7 @@ function enParseCommand(raw) {
   for (const [tab, re] of NAV) { if (re.test(s)) return { action: "nav", tab }; }
   return null;
 }
-const enParser = { parseSpoken: enParseSpoken, splitLabelAmount: enSplitLabelAmount, splitMultiLabelAmount: enSplitMultiLabelAmount, isNoneAnswer: enIsNoneAnswer, parseCommand: enParseCommand };
+const enParser = { parseSpoken: enParseSpoken, splitLabelAmount: enSplitLabelAmount, splitMultiLabelAmount: enSplitMultiLabelAmount, isNoneAnswer: enIsNoneAnswer, parseCommand: enParseCommand, matchBucket: enMatchBucket };
 
 /* per-locale voice config; null means typing-only (ja / ko) */
 export const VOICE = {
@@ -466,6 +492,7 @@ export const STRINGS = {
     vcNav: (where) => `Switched to ${where}`,
     vcNoBucket: "Got the amount — say a category too, e.g. “expense”, “asset”, “investment”.",
     vcPickCat: (label, n) => `Where does “${label || n}” belong?`,
+    vcPickHint: "Tap, or just say the category out loud.",
     vcUnrecognized: (txt) => `Didn’t catch a command in “${txt}”. Try “add income salary 5000”.`,
     speechNoSupport: "This browser does not support voice input — please type instead. Chrome or Safari work best.",
     speechCantStart: "Could not start voice — please type instead.",
@@ -723,6 +750,7 @@ export const STRINGS = {
     vcNav: (where) => `已切換到${where}`,
     vcNoBucket: "聽到金額了——再說一個類別,例如「支出」「資產」「投資」。",
     vcPickCat: (label, n) => `「${label || n}」要記在哪一類?`,
+    vcPickHint: "點選,或直接說出類別即可。",
     vcUnrecognized: (txt) => `沒聽出指令:「${txt}」。試試「新增收入 薪水 五萬」。`,
     speechNoSupport: "這個瀏覽器不支援語音輸入,請改用打字。建議用 Chrome 或 Safari。",
     speechCantStart: "無法啟動語音,請改用打字。",
@@ -980,6 +1008,7 @@ export const STRINGS = {
     vcNav: (where) => `已切换到${where}`,
     vcNoBucket: "听到金额了——再说一个类别,例如「支出」「资产」「投资」。",
     vcPickCat: (label, n) => `「${label || n}」要记在哪一类?`,
+    vcPickHint: "点选,或直接说出类别即可。",
     vcUnrecognized: (txt) => `没听出指令:「${txt}」。试试「新增收入 薪水 五万」。`,
     speechNoSupport: "这个浏览器不支持语音输入,请改用打字。建议用 Chrome 或 Safari。",
     speechCantStart: "无法启动语音,请改用打字。",
@@ -1237,6 +1266,7 @@ export const STRINGS = {
     vcNav: (where) => `${where}に切り替えました`,
     vcNoBucket: "金額は聞き取れました。カテゴリも言ってください(例:「支出」「資産」「投資」)。",
     vcPickCat: (label, n) => `「${label || n}」はどのカテゴリ?`,
+    vcPickHint: "タップ、または声でカテゴリを言ってください。",
     vcUnrecognized: (txt) => `コマンドを認識できません:「${txt}」。`,
     speechNoSupport: "このブラウザは音声入力に対応していません。入力してください。Chrome か Safari を推奨します。",
     speechCantStart: "音声を開始できませんでした。入力してください。",
@@ -1494,6 +1524,7 @@ export const STRINGS = {
     vcNav: (where) => `${where}(으)로 전환했습니다`,
     vcNoBucket: "금액은 인식했어요. 카테고리도 말해 주세요(예: 「지출」 「자산」 「투자」).",
     vcPickCat: (label, n) => `「${label || n}」은(는) 어느 분류?`,
+    vcPickHint: "탭하거나, 분류를 소리내어 말하세요.",
     vcUnrecognized: (txt) => `명령을 인식하지 못했습니다: 「${txt}」.`,
     speechNoSupport: "이 브라우저는 음성 입력을 지원하지 않습니다. 직접 입력해 주세요. Chrome 또는 Safari를 권장합니다.",
     speechCantStart: "음성을 시작할 수 없습니다. 직접 입력해 주세요.",

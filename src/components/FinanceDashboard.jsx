@@ -210,7 +210,9 @@ const buildCSS = (f) => `
 .fab-cue b{color:var(--text);font-weight:600;}
 .vc-pick{pointer-events:auto;background:var(--surface);border:1px solid var(--gold);border-radius:14px;
   padding:11px 13px;box-shadow:0 12px 30px -10px rgba(0,0,0,.55);animation:rise .3s ease both;max-width:300px;}
-.vc-pick-q{color:var(--text);font-size:13.5px;line-height:1.4;margin-bottom:9px;font-weight:600;}
+.vc-pick-q{color:var(--text);font-size:13.5px;line-height:1.4;margin-bottom:4px;font-weight:600;}
+.vc-pick-hint{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11.5px;margin-bottom:9px;}
+.vc-pick-hint .mic-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:pulse 1s infinite;}
 .vc-pick-opts{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end;}
 .vc-pick-btn{pointer-events:auto;cursor:pointer;background:var(--bg);border:1px solid var(--line2);
   color:var(--text);border-radius:999px;padding:6px 12px;font-size:12.5px;transition:all .15s;}
@@ -419,6 +421,8 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
   const [vcAsk, setVcAsk] = useState(null); // {items} when an amount was heard but no category
+  const vcAskRef = React.useRef(null); // mirror of vcAsk for the recognizer's (possibly stale) onresult closure
+  useEffect(() => { vcAskRef.current = vcAsk; }, [vcAsk]);
   const [vcLastBucket, setVcLastBucket] = useState(() => { try { return window.localStorage.getItem(VC_BUCKET_KEY) || ""; } catch { return ""; } });
   const vcLabelMap = React.useRef((() => { try { return JSON.parse(window.localStorage.getItem(VC_LABELS_KEY) || "{}") || {}; } catch { return {}; } })());
   const vcLabelKey = (s) => String(s || "").trim().toLowerCase();
@@ -678,6 +682,20 @@ export default function FinanceDashboard({ locale = "en" }) {
   // otherwise treat it as a global voice command (works on any tab, no edit mode)
   const onVoiceFinal = (txt) => {
     if (chatOpen && !qaDone) { setSpeechErr(""); fillFromSpeech(txt); return; }
+    // if the category chooser is open, let the user answer it by voice
+    const pending = vcAskRef.current;
+    if (pending && pending.items && pending.items.length) {
+      if (/^(取消|算了|不要|關掉|关掉|cancel|never ?mind|skip)$/i.test(txt.trim())) { setVcAsk(null); setVcHeard(""); return; }
+      const b = voice.parser.matchBucket ? voice.parser.matchBucket(txt) : null;
+      if (b) {
+        const items = pending.items;
+        setVcAsk(null); setVcHeard("");
+        setVcLastBucket(b); try { window.localStorage.setItem(VC_BUCKET_KEY, b); } catch { /* ignore */ }
+        applyVoiceCommand({ action: "add", bucket: b, items });
+        return;
+      }
+      // not a category word — fall through (maybe they spoke a whole new command)
+    }
     const cmd = voice.parser.parseCommand(txt);
     if (cmd) { applyVoiceCommand(cmd); setVcHeard(""); }
     else flashVcMsg(t.vcUnrecognized(txt));
@@ -1329,6 +1347,7 @@ export default function FinanceDashboard({ locale = "en" }) {
           {vcAsk && (
             <div className="vc-pick">
               <div className="vc-pick-q">{t.vcPickCat((vcAsk.items[0] || {}).label, money((vcAsk.items[0] || {}).value, cur))}</div>
+              {t.vcPickHint && <div className="vc-pick-hint">{listening ? <><span className="mic-dot" /> {t.vcPickHint}</> : t.vcPickHint}</div>}
               <div className="vc-pick-opts">
                 {(() => {
                   const all = ["recurring_expense", "month_expense", "recurring_income", "month_income", "asset", "liability", "portfolio"];
