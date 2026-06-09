@@ -425,8 +425,17 @@ export default function FinanceDashboard({ locale = "en" }) {
   const [vcMsg, setVcMsg] = useState("");
   const [vcHeard, setVcHeard] = useState("");
   const [vcAsk, setVcAsk] = useState(null); // {items} when an amount was heard but no category
-  const vcAskRef = React.useRef(null); // mirror of vcAsk for the recognizer's (possibly stale) onresult closure
-  useEffect(() => { vcAskRef.current = vcAsk; }, [vcAsk]);
+  const vcAskRef = React.useRef(null); // mirror of vcAsk for the recognizer's (possibly stale) onresult/onend closures
+  // set both state and ref synchronously so the recognizer's closures see the latest value immediately
+  const showVcAsk = (v) => { vcAskRef.current = v; setVcAsk(v); };
+  // safety net: if the mic drops while the category chooser is waiting, reopen it so it can be answered by voice
+  useEffect(() => {
+    if (vcAsk && voice && !chatOpen && !listening) {
+      const id = setTimeout(() => { if (vcAskRef.current && !listening) startVoice(); }, 200);
+      return () => clearTimeout(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vcAsk, listening]);
   const [vcLastBucket, setVcLastBucket] = useState(() => { try { return window.localStorage.getItem(VC_BUCKET_KEY) || ""; } catch { return ""; } });
   const vcLabelMap = React.useRef((() => { try { return JSON.parse(window.localStorage.getItem(VC_LABELS_KEY) || "{}") || {}; } catch { return {}; } })());
   const vcLabelKey = (s) => String(s || "").trim().toLowerCase();
@@ -689,11 +698,11 @@ export default function FinanceDashboard({ locale = "en" }) {
     // if the category chooser is open, let the user answer it by voice
     const pending = vcAskRef.current;
     if (pending && pending.items && pending.items.length) {
-      if (/^(取消|算了|不要|關掉|关掉|cancel|never ?mind|skip)$/i.test(txt.trim())) { setVcAsk(null); setVcHeard(""); return; }
+      if (/^(取消|算了|不要|關掉|关掉|cancel|never ?mind|skip)$/i.test(txt.trim())) { showVcAsk(null); setVcHeard(""); return; }
       const b = voice.parser.matchBucket ? voice.parser.matchBucket(txt) : null;
       if (b) {
         const items = pending.items;
-        setVcAsk(null); setVcHeard("");
+        showVcAsk(null); setVcHeard("");
         setVcLastBucket(b); try { window.localStorage.setItem(VC_BUCKET_KEY, b); } catch { /* ignore */ }
         applyVoiceCommand({ action: "add", bucket: b, items });
         return;
@@ -733,7 +742,14 @@ export default function FinanceDashboard({ locale = "en" }) {
       else if (e.error === "no-speech") { /* keep listening in continuous mode */ }
       else if (chatOpen) setSpeechErr(t.speechStopped);
     };
-    rec.onend = () => setListening(false);
+    rec.onend = () => {
+      // browsers end the session after a final result / brief silence; if the category
+      // chooser is still waiting for a spoken answer, transparently restart the mic
+      if (vcAskRef.current && recogRef.current === rec) {
+        try { rec.start(); return; } catch { /* fall through to stop */ }
+      }
+      setListening(false);
+    };
     try { rec.start(); setListening(true); } catch { voiceErr(t.speechCantStart); }
   };
 
@@ -775,7 +791,7 @@ export default function FinanceDashboard({ locale = "en" }) {
           Object.entries(groups).forEach(([b, items]) => applyVoiceCommand({ action: "add", bucket: b, items, _remembered: true }));
           return;
         }
-        setVcMsg(""); setVcAsk({ items: cmd.items }); return;
+        setVcMsg(""); showVcAsk({ items: cmd.items }); return;
       }
       flashVcMsg(t.vcNoBucket); return;
     }
@@ -804,7 +820,7 @@ export default function FinanceDashboard({ locale = "en" }) {
     // jump to the tab that shows what was just added, so the change is visible
     const tabFor = { recurring_income: "cashflow", recurring_expense: "cashflow", month_income: "cashflow", month_expense: "cashflow", asset: "overview", liability: "overview", portfolio: "invest" };
     if (tabFor[cmd.bucket]) setTab(tabFor[cmd.bucket]);
-    setVcAsk(null);
+    showVcAsk(null);
     // learn item-name -> category so future amount-only entries file themselves
     if (!cmd._remembered) rememberLabels(cmd.items, cmd.bucket);
     flashVcMsg(t.vcAdded(t.vcBuckets[cmd.bucket] || "", n));
@@ -1364,7 +1380,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                   const ordered = vcLastBucket && all.includes(vcLastBucket) ? [vcLastBucket, ...all.filter((b) => b !== vcLastBucket)] : all;
                   return ordered.map((b) => (
                     <button key={b} className={"vc-pick-btn" + (b === vcLastBucket ? " last" : "")} onClick={() => {
-                      setVcAsk(null);
+                      showVcAsk(null);
                       setVcLastBucket(b);
                       try { window.localStorage.setItem(VC_BUCKET_KEY, b); } catch { /* ignore */ }
                       applyVoiceCommand({ action: "add", bucket: b, items: vcAsk.items });
@@ -1373,7 +1389,7 @@ export default function FinanceDashboard({ locale = "en" }) {
                     </button>
                   ));
                 })()}
-                <button className="vc-pick-btn cancel" onClick={() => setVcAsk(null)}>{t.cancel || "✕"}</button>
+                <button className="vc-pick-btn cancel" onClick={() => showVcAsk(null)}>{t.cancel || "✕"}</button>
               </div>
             </div>
           )}
