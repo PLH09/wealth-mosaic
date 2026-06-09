@@ -1057,6 +1057,7 @@ export default function FinanceDashboard({ locale = "en" }) {
 
   const TABS = [
     { key: "cashflow", label: t.tabs.cashflow },
+    { key: "allocate", label: t.tabs.allocate },
     { key: "overview", label: t.tabs.overview },
     { key: "invest", label: t.tabs.invest },
     { key: "retire", label: t.tabs.retire },
@@ -1066,6 +1067,7 @@ export default function FinanceDashboard({ locale = "en" }) {
   // competing big figures on tabs that have their own headline metric)
   const headStat =
     tab === "cashflow" ? { label: t.monthlySurplus, value: calc.net } :
+    tab === "allocate" ? { label: t.monthlySurplus, value: calc.net } :
     tab === "invest" ? { label: t.invKpiTotal, value: calc.invest } :
     { label: t.netLabel, value: calc.netWorth };
 
@@ -1419,8 +1421,8 @@ export default function FinanceDashboard({ locale = "en" }) {
           </div>
         )}
 
-        {/* ---------------- Allocation Router — embedded in Cash Flow ---------------- */}
-        {tab === "cashflow" && (() => {
+        {/* ---------------- Allocation Router (Step 2) ---------------- */}
+        {tab === "allocate" && (() => {
           const alloc = data.allocation || { investPct: 50, goalsPct: 30, bufferPct: 20 };
           const surplus = calc.net || 0;
           const setAlloc = (key, rawVal) => {
